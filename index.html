@@ -1,0 +1,2156 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Automata Simulator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+/* ═══════════════════════════════════════════
+   THEME VARIABLES
+═══════════════════════════════════════════ */
+[data-theme="dark"] {
+  --bg:        #080d14;
+  --bg2:       #0c1420;
+  --surface:   #101b2b;
+  --surface2:  #152030;
+  --surface3:  #1a2840;
+  --border:    #1e3050;
+  --border2:   #243860;
+  --text:      #e4eaf4;
+  --text2:     #8fa3bf;
+  --text3:     #4d6480;
+  --accent:    #38bdf8;
+  --accent-bg: rgba(56,189,248,.1);
+  --purple:    #a78bfa;
+  --purple-bg: rgba(167,139,250,.1);
+  --green:     #34d399;
+  --green-bg:  rgba(52,211,153,.1);
+  --red:       #fb7185;
+  --red-bg:    rgba(251,113,133,.1);
+  --yellow:    #fbbf24;
+  --shadow:    0 4px 24px rgba(0,0,0,.5);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,.3);
+  --header-bg: rgba(8,13,20,.92);
+  --graph-bg:  #06090f;
+  --grid-line: rgba(56,189,248,.035);
+  --node-fill:        #1e3a5f;
+  --node-fill-accept: #0d3a22;
+  --node-fill-active: #0e3560;
+  --node-stroke:      #38bdf8;
+  --node-stroke-start:#34d399;
+  --node-stroke-acc:  #34d399;
+  --node-stroke-act:  #38bdf8;
+  --node-text:        #ffffff;
+  --edge-col:   #253a55;
+  --edge-lbl:   #4d6a8a;
+  --edge-act:   #38bdf8;
+}
+[data-theme="light"] {
+  --bg:        #f0f4fb;
+  --bg2:       #e8eef8;
+  --surface:   #ffffff;
+  --surface2:  #f4f7ff;
+  --surface3:  #edf1fb;
+  --border:    #cdd8ee;
+  --border2:   #bccade;
+  --text:      #182038;
+  --text2:     #4a6080;
+  --text3:     #90a8c0;
+  --accent:    #0284c7;
+  --accent-bg: rgba(2,132,199,.09);
+  --purple:    #7c3aed;
+  --purple-bg: rgba(124,58,237,.09);
+  --green:     #059669;
+  --green-bg:  rgba(5,150,105,.09);
+  --red:       #e11d48;
+  --red-bg:    rgba(225,29,72,.09);
+  --yellow:    #d97706;
+  --shadow:    0 4px 24px rgba(0,0,0,.09);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,.05);
+  --header-bg: rgba(240,244,251,.95);
+  --graph-bg:  #f8faff;
+  --grid-line: rgba(2,132,199,.055);
+  --node-fill:        #ffffff;
+  --node-fill-accept: #ecfdf8;
+  --node-fill-active: #e0f2fe;
+  --node-stroke:      #c5d5ea;
+  --node-stroke-start:#059669;
+  --node-stroke-acc:  #059669;
+  --node-stroke-act:  #0284c7;
+  --node-text:        #182038;
+  --edge-col:   #a0b8d0;
+  --edge-lbl:   #6080a0;
+  --edge-act:   #0284c7;
+}
+
+/* ═══════════════════════════════════════════
+   BASE
+═══════════════════════════════════════════ */
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html, body { height:100%; background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; overflow-x:hidden; transition:background .3s,color .3s; }
+body::before {
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background-image:linear-gradient(var(--grid-line) 1px,transparent 1px),linear-gradient(90deg,var(--grid-line) 1px,transparent 1px);
+  background-size:44px 44px;
+}
+
+/* ═══════════════════════════════════════════
+   HEADER
+═══════════════════════════════════════════ */
+header {
+  position:sticky; top:0; z-index:200; height:56px;
+  background:var(--header-bg); backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--border);
+  display:flex; align-items:center; gap:.75rem; padding:0 1.25rem;
+  box-shadow:var(--shadow-sm); transition:background .3s,border-color .3s;
+}
+.logo {
+  font-family:'JetBrains Mono',monospace; font-size:.95rem; font-weight:600;
+  color:var(--accent); letter-spacing:.07em; white-space:nowrap;
+  display:flex; align-items:center; gap:.45rem;
+}
+.logo-dot { width:7px; height:7px; border-radius:50%; background:var(--accent); animation:blink 2s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.35} }
+
+.nav-tabs { display:flex; gap:2px; flex:1; overflow-x:auto; scrollbar-width:none; }
+.nav-tabs::-webkit-scrollbar { display:none; }
+.nav-tab {
+  padding:.38rem .85rem; border:none; background:transparent;
+  color:var(--text2); cursor:pointer; border-radius:6px;
+  font-family:'Inter',sans-serif; font-size:.81rem; font-weight:500;
+  transition:all .18s; white-space:nowrap; position:relative;
+}
+.nav-tab:hover { color:var(--text); background:var(--surface3); }
+.nav-tab.active { color:var(--accent); background:var(--accent-bg); }
+.nav-tab.active::after {
+  content:''; position:absolute; bottom:-1px; left:8px; right:8px; height:2px;
+  background:var(--accent); border-radius:2px 2px 0 0;
+}
+
+.theme-toggle {
+  margin-left:auto; display:flex; align-items:center; gap:.4rem;
+  padding:.3rem .7rem; border:1.5px solid var(--border); border-radius:20px;
+  background:var(--surface2); cursor:pointer; transition:all .2s;
+  font-size:.75rem; color:var(--text2); white-space:nowrap; flex-shrink:0;
+}
+.theme-toggle:hover { border-color:var(--accent); color:var(--accent); background:var(--accent-bg); }
+
+/* ═══════════════════════════════════════════
+   LAYOUT
+═══════════════════════════════════════════ */
+.app { display:flex; height:calc(100vh - 56px); position:relative; z-index:1; }
+.sidebar {
+  width:325px; min-width:300px; background:var(--surface);
+  border-right:1px solid var(--border); overflow-y:auto;
+  padding:.9rem; display:flex; flex-direction:column; gap:.7rem;
+  transition:background .3s,border-color .3s;
+}
+.main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+.graph-area { flex:1; position:relative; background:var(--graph-bg); border-bottom:1px solid var(--border); overflow:hidden; transition:background .3s; }
+.steps-area { height:195px; background:var(--surface); overflow-y:auto; padding:.85rem; transition:background .3s; }
+
+/* ═══════════════════════════════════════════
+   PANELS
+═══════════════════════════════════════════ */
+.panel {
+  background:var(--surface2); border:1px solid var(--border);
+  border-radius:10px; padding:.85rem; transition:background .3s,border-color .3s;
+}
+.panel-title {
+  font-family:'JetBrains Mono',monospace; font-size:.66rem; font-weight:600;
+  color:var(--accent); letter-spacing:.18em; text-transform:uppercase;
+  margin-bottom:.7rem; display:flex; align-items:center; gap:.45rem;
+}
+
+/* ═══════════════════════════════════════════
+   FORM CONTROLS
+═══════════════════════════════════════════ */
+.field { margin-bottom:.6rem; }
+label { font-size:.74rem; color:var(--text2); display:block; margin-bottom:.25rem; font-weight:500; }
+input, textarea, select {
+  width:100%; background:var(--bg2); border:1.5px solid var(--border);
+  color:var(--text); border-radius:7px; padding:.42rem .68rem;
+  font-family:'Inter',sans-serif; font-size:.82rem; outline:none;
+  transition:border-color .18s, background .3s, color .3s;
+}
+input:focus, textarea:focus, select:focus { border-color:var(--accent); background:var(--surface3); }
+textarea { resize:vertical; min-height:88px; font-family:'JetBrains Mono',monospace; font-size:.72rem; line-height:1.65; }
+
+/* ── INPUT STRING DISPLAY ── */
+.str-wrap {
+  display:flex; flex-wrap:wrap; align-items:center; gap:.22rem;
+  background:var(--bg2); border:1.5px solid var(--border); border-radius:7px;
+  padding:.38rem .5rem; min-height:36px; cursor:text;
+  transition:border-color .18s;
+}
+.str-wrap:focus-within { border-color:var(--accent); }
+.ch-tok {
+  display:inline-flex; align-items:center; justify-content:center;
+  width:24px; height:24px; border-radius:5px;
+  background:var(--surface3); border:1px solid var(--border2);
+  color:var(--text); font-family:'JetBrains Mono',monospace; font-size:.79rem; font-weight:600;
+  transition:all .22s; cursor:default; user-select:none;
+}
+.ch-tok.tok-pending  { opacity:.6; }
+.ch-tok.tok-active   { background:var(--accent-bg); border-color:var(--accent); color:var(--accent); transform:scale(1.15); box-shadow:0 0 8px rgba(56,189,248,.35); }
+.ch-tok.tok-consumed { background:var(--surface2); border-color:var(--border); color:var(--text3); opacity:.35; }
+.str-wrap input {
+  border:none; background:transparent; padding:0; flex:1; min-width:55px;
+  font-size:.82rem; color:var(--text);
+}
+.str-wrap input:focus { border:none; background:transparent; }
+
+/* ═══════════════════════════════════════════
+   BUTTONS
+═══════════════════════════════════════════ */
+.btn {
+  padding:.4rem .95rem; border:none; border-radius:7px; cursor:pointer;
+  font-family:'Inter',sans-serif; font-size:.8rem; font-weight:600;
+  transition:all .18s; display:inline-flex; align-items:center; gap:.3rem; white-space:nowrap;
+}
+.btn-accent  { background:var(--accent); color:#fff; }
+.btn-accent:hover  { filter:brightness(1.1); transform:translateY(-1px); box-shadow:0 4px 12px rgba(56,189,248,.3); }
+.btn-purple  { background:var(--purple); color:#fff; }
+.btn-purple:hover  { filter:brightness(1.1); transform:translateY(-1px); box-shadow:0 4px 12px rgba(167,139,250,.35); }
+.btn-green   { background:var(--green); color:#fff; }
+.btn-green:hover   { filter:brightness(1.08); transform:translateY(-1px); }
+.btn-ghost   { background:transparent; border:1.5px solid var(--border); color:var(--text2); }
+.btn-ghost:hover   { border-color:var(--accent); color:var(--accent); background:var(--accent-bg); }
+.btn-sm { padding:.3rem .65rem; font-size:.74rem; }
+.btn-row { display:flex; gap:.35rem; flex-wrap:wrap; margin-top:.45rem; }
+
+/* ═══════════════════════════════════════════
+   BADGES
+═══════════════════════════════════════════ */
+.badge { display:inline-flex; align-items:center; gap:.3rem; padding:.2rem .52rem; border-radius:20px; font-size:.72rem; font-weight:600; }
+.badge-accept  { background:var(--green-bg);  color:var(--green);  border:1px solid color-mix(in srgb, var(--green) 30%, transparent); }
+.badge-reject  { background:var(--red-bg);    color:var(--red);    border:1px solid color-mix(in srgb, var(--red) 30%, transparent); }
+.badge-neutral { background:var(--accent-bg); color:var(--accent); border:1px solid color-mix(in srgb, var(--accent) 25%, transparent); }
+
+/* ═══════════════════════════════════════════
+   STEP TRACE
+═══════════════════════════════════════════ */
+.steps-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:.6rem; }
+.steps-lbl { font-family:'JetBrains Mono',monospace; font-size:.64rem; font-weight:600; color:var(--accent); letter-spacing:.15em; text-transform:uppercase; }
+.step-trace { display:flex; gap:.28rem; flex-wrap:wrap; align-items:center; }
+.step-item {
+  display:flex; align-items:center; gap:.18rem;
+  background:var(--surface2); border:1.5px solid var(--border);
+  border-radius:7px; padding:.26rem .55rem; font-size:.74rem;
+  transition:all .22s; cursor:pointer;
+}
+.step-item:hover { border-color:var(--border2); }
+.step-item.s-active   { border-color:var(--accent); background:var(--accent-bg); box-shadow:0 0 8px rgba(56,189,248,.2); }
+.step-item.s-accepted { border-color:var(--green); background:var(--green-bg); }
+.step-item.s-rejected { border-color:var(--red);   background:var(--red-bg); }
+.s-state { font-family:'JetBrains Mono',monospace; color:var(--accent); font-size:.73rem; font-weight:600; }
+.s-sym   { color:var(--yellow); font-family:'JetBrains Mono',monospace; font-size:.73rem; }
+.s-sep   { color:var(--text3); font-size:.8rem; }
+
+/* ═══════════════════════════════════════════
+   GRAPH SVG
+═══════════════════════════════════════════ */
+#graph-svg { width:100%; height:100%; }
+.graph-controls { position:absolute; top:10px; right:10px; display:flex; gap:.32rem; z-index:10; }
+.graph-legend {
+  position:absolute; bottom:10px; left:10px;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:8px; padding:.48rem .75rem; font-size:.68rem;
+  display:flex; gap:.85rem; box-shadow:var(--shadow-sm);
+}
+.lg-item { display:flex; align-items:center; gap:.3rem; color:var(--text2); }
+.lg-dot  { width:11px; height:11px; border-radius:50%; border:2px solid; }
+
+.ph-msg { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.7rem; pointer-events:none; }
+.ph-icon { font-size:2.4rem; opacity:.13; }
+.ph-text { font-size:.82rem; color:var(--text3); }
+
+/* ═══════════════════════════════════════════
+   SAMPLES
+═══════════════════════════════════════════ */
+.sbtn {
+  padding:.2rem .52rem; border:1.5px solid var(--border); background:transparent;
+  color:var(--text2); border-radius:5px; cursor:pointer; font-size:.68rem;
+  font-family:'JetBrains Mono',monospace; transition:all .18s;
+}
+.sbtn:hover { border-color:var(--purple); color:var(--purple); background:var(--purple-bg); }
+
+/* ═══════════════════════════════════════════
+   RESULT
+═══════════════════════════════════════════ */
+.result-box {
+  margin-top:.55rem; padding:.55rem .7rem; border-radius:8px;
+  border:1.5px solid var(--border); background:var(--bg2);
+  font-family:'JetBrains Mono',monospace; font-size:.73rem;
+  display:flex; align-items:center; gap:.55rem;
+}
+
+/* ═══════════════════════════════════════════
+   TABLE
+═══════════════════════════════════════════ */
+table { width:100%; border-collapse:collapse; font-size:.76rem; font-family:'JetBrains Mono',monospace; }
+th { background:var(--accent-bg); color:var(--accent); padding:.48rem .55rem; text-align:left; border:1px solid var(--border2); font-size:.69rem; }
+td { padding:.4rem .55rem; border:1px solid var(--border); color:var(--text); }
+tr:hover td { background:var(--surface3); }
+
+/* ═══════════════════════════════════════════
+   MINIMIZATION
+═══════════════════════════════════════════ */
+.min-step { background:var(--surface2); border:1px solid var(--border); border-radius:7px; padding:.48rem .7rem; margin-bottom:.38rem; font-size:.74rem; }
+.part-set {
+  display:inline-flex; align-items:center;
+  background:var(--purple-bg); border:1px solid color-mix(in srgb, var(--purple) 35%, transparent);
+  border-radius:4px; padding:.12rem .36rem; margin:.1rem;
+  font-family:'JetBrains Mono',monospace; font-size:.69rem; color:var(--purple);
+}
+
+/* ═══════════════════════════════════════════
+   INFO TEXT
+═══════════════════════════════════════════ */
+.info { font-size:.75rem; font-family:'JetBrains Mono',monospace; line-height:1.75; color:var(--text); }
+.info-k { color:var(--accent); font-weight:600; }
+
+/* ═══════════════════════════════════════════
+   SCROLLBAR
+═══════════════════════════════════════════ */
+::-webkit-scrollbar { width:4px; height:4px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--border2); border-radius:3px; }
+
+/* Tooltip */
+.tip {
+  position:fixed; background:var(--surface); border:1px solid var(--border2);
+  border-radius:7px; padding:.38rem .62rem; font-size:.72rem; pointer-events:none;
+  display:none; z-index:2000; font-family:'JetBrains Mono',monospace;
+  box-shadow:var(--shadow); color:var(--text);
+}
+
+/* ── GENERATOR TAB SPECIAL ── */
+.gen-tab { color: var(--yellow) !important; }
+.gen-tab.active { color: var(--yellow) !important; background: rgba(251,191,36,.1) !important; }
+.gen-tab.active::after { background: var(--yellow) !important; }
+.gen-tab:hover { color: var(--yellow) !important; background: rgba(251,191,36,.07) !important; }
+
+/* Generator category select */
+select {
+  width:100%; background:var(--bg2); border:1.5px solid var(--border);
+  color:var(--text); border-radius:7px; padding:.42rem .68rem;
+  font-family:'Inter',sans-serif; font-size:.82rem; outline:none;
+  transition:border-color .18s,background .3s;
+  cursor:pointer;
+}
+select:focus { border-color:var(--accent); }
+optgroup { color:var(--text3); font-size:.75rem; }
+option { color:var(--text); background:var(--surface2); }
+
+/* gen-p hidden by default */
+.gen-p { display:none; }
+
+/* Generated automaton highlight card */
+#gen-out .panel { border-color: var(--yellow); }
+[data-theme="light"] #gen-out .panel { border-color: var(--yellow); }
+
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><div class="logo-dot"></div>AUTOMATA</div>
+  <nav class="nav-tabs">
+    <button class="nav-tab active" onclick="switchTab('dfa',this)">DFA Simulator</button>
+    <button class="nav-tab" onclick="switchTab('nfa',this)">NFA Simulator</button>
+    <button class="nav-tab" onclick="switchTab('nfa2dfa',this)">NFA → DFA</button>
+    <button class="nav-tab" onclick="switchTab('regex2nfa',this)">Regex → NFA</button>
+    <button class="nav-tab" onclick="switchTab('mindfa',this)">Minimize DFA</button>
+    <button class="nav-tab gen-tab" onclick="switchTab('generator',this)">✦ Generator</button>
+  </nav>
+  <button class="theme-toggle" onclick="toggleTheme()">
+    <span id="th-icon">🌙</span><span id="th-lbl">Dark</span>
+  </button>
+</header>
+
+<div class="app">
+  <!-- ═══════════ SIDEBAR ═══════════ -->
+  <aside class="sidebar">
+
+    <!-- ── DFA ── -->
+    <div id="panel-dfa" class="sidebar-panel">
+      <div class="panel">
+        <div class="panel-title">◈ DFA Definition</div>
+        <div class="field"><label>States (comma-separated)</label>
+          <input id="dfa-states" value="q0,q1,q2"/></div>
+        <div class="field"><label>Alphabet — letters, digits, or any symbols</label>
+          <input id="dfa-alpha" value="a,b" placeholder="a,b  or  0,1  or  a,b,0,1"/></div>
+        <div class="field"><label>Start State</label>
+          <input id="dfa-start" value="q0"/></div>
+        <div class="field"><label>Accept States</label>
+          <input id="dfa-accept" value="q2"/></div>
+        <div class="field">
+          <label>Transitions — <code style="color:var(--purple);font-size:.7rem">state,symbol→next</code> one per line</label>
+          <textarea id="dfa-trans">q0,a→q1
+q0,b→q0
+q1,a→q1
+q1,b→q2
+q2,a→q1
+q2,b→q0</textarea>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-accent btn-sm" onclick="buildGraph('dfa')">◈ Graph</button>
+          <button class="sbtn" onclick="loadSample('dfa','even-b')">Even b's</button>
+          <button class="sbtn" onclick="loadSample('dfa','end-01')">Ends 01</button>
+          <button class="sbtn" onclick="loadSample('dfa','div3')">Div by 3</button>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">▶ Test String</div>
+        <div class="field">
+          <label>Input — each character is one alphabet symbol</label>
+          <div class="str-wrap" id="dfa-sw" onclick="fi('dfa')">
+            <input id="dfa-input" value="abba" placeholder="e.g. abba or 0101..."
+              oninput="buildToks('dfa')" onkeydown="strKey(event,'dfa')"/>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-accent btn-sm" onclick="runSim('dfa')">▶ Run</button>
+          <button class="btn btn-ghost btn-sm" onclick="step('dfa',-1)">◀</button>
+          <button class="btn btn-ghost btn-sm" onclick="step('dfa',1)">▶ Step</button>
+          <button class="btn btn-ghost btn-sm" onclick="resetSim('dfa')">↺</button>
+        </div>
+        <div id="dfa-result"></div>
+      </div>
+    </div>
+
+    <!-- ── NFA ── -->
+    <div id="panel-nfa" class="sidebar-panel" style="display:none">
+      <div class="panel">
+        <div class="panel-title">◈ NFA Definition</div>
+        <div class="field"><label>States</label><input id="nfa-states" value="q0,q1,q2,q3"/></div>
+        <div class="field"><label>Alphabet (use ε for epsilon)</label>
+          <input id="nfa-alpha" value="a,b" placeholder="a,b  or  0,1"/></div>
+        <div class="field"><label>Start State</label><input id="nfa-start" value="q0"/></div>
+        <div class="field"><label>Accept States</label><input id="nfa-accept" value="q3"/></div>
+        <div class="field">
+          <label>Transitions — multiple targets: <code style="color:var(--purple);font-size:.7rem">q0,a→q0,q1</code></label>
+          <textarea id="nfa-trans">q0,a→q0,q1
+q0,b→q0
+q1,b→q2
+q2,b→q3</textarea>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-accent btn-sm" onclick="buildGraph('nfa')">◈ Graph</button>
+          <button class="sbtn" onclick="loadSample('nfa','abb')">abb suffix</button>
+          <button class="sbtn" onclick="loadSample('nfa','eps')">ε-NFA</button>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">▶ Test String</div>
+        <div class="field">
+          <label>Input string (letters, digits, etc.)</label>
+          <div class="str-wrap" id="nfa-sw" onclick="fi('nfa')">
+            <input id="nfa-input" value="aabb" placeholder="e.g. aabb or 0011..."
+              oninput="buildToks('nfa')" onkeydown="strKey(event,'nfa')"/>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-accent btn-sm" onclick="runSim('nfa')">▶ Run</button>
+          <button class="btn btn-ghost btn-sm" onclick="step('nfa',-1)">◀</button>
+          <button class="btn btn-ghost btn-sm" onclick="step('nfa',1)">▶ Step</button>
+          <button class="btn btn-ghost btn-sm" onclick="resetSim('nfa')">↺</button>
+        </div>
+        <div id="nfa-result"></div>
+      </div>
+    </div>
+
+    <!-- ── NFA→DFA ── -->
+    <div id="panel-nfa2dfa" class="sidebar-panel" style="display:none">
+      <div class="panel">
+        <div class="panel-title">◈ NFA (Subset Construction)</div>
+        <div class="field"><label>States</label><input id="n2d-states" value="q0,q1,q2,q3"/></div>
+        <div class="field"><label>Alphabet</label><input id="n2d-alpha" value="a,b"/></div>
+        <div class="field"><label>Start</label><input id="n2d-start" value="q0"/></div>
+        <div class="field"><label>Accept</label><input id="n2d-accept" value="q3"/></div>
+        <div class="field"><label>Transitions</label>
+          <textarea id="n2d-trans">q0,a→q0,q1
+q0,b→q0
+q1,b→q2
+q2,b→q3</textarea>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-purple btn-sm" onclick="doNFA2DFA()">⇒ Convert</button>
+          <button class="sbtn" onclick="loadSample('n2d','nfa1')">Sample</button>
+          <button class="sbtn" onclick="loadSample('n2d','bin')">Binary</button>
+        </div>
+      </div>
+      <div id="n2d-out" style="display:none">
+        <div class="panel">
+          <div class="panel-title">✓ Resulting DFA</div>
+          <div id="n2d-info" class="info"></div>
+          <div class="btn-row" style="margin-top:.6rem">
+            <button class="btn btn-green btn-sm" onclick="showSubsetTable()">📋 Table</button>
+            <button class="btn btn-ghost btn-sm" onclick="showDFAgraph()">DFA Graph</button>
+            <button class="btn btn-ghost btn-sm" onclick="showNFAgraph()">NFA Graph</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Regex→NFA ── -->
+    <div id="panel-regex2nfa" class="sidebar-panel" style="display:none">
+      <div class="panel">
+        <div class="panel-title">⚡ Thompson Construction</div>
+        <div class="field">
+          <label>Regular Expression</label>
+          <input id="regex-in" value="(a|b)*abb"/>
+        </div>
+        <div style="font-size:.7rem;color:var(--text2);line-height:1.9;margin-bottom:.5rem">
+          <code style="color:var(--accent)">|</code> union &nbsp;
+          <code style="color:var(--accent)">*</code> Kleene star &nbsp;
+          <code style="color:var(--accent)">+</code> one-or-more &nbsp;
+          <code style="color:var(--accent)">?</code> optional &nbsp;
+          <code style="color:var(--accent)">()</code> groups
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-purple btn-sm" onclick="doRegex2NFA()">⚡ Build</button>
+          <button class="sbtn" onclick="document.getElementById('regex-in').value='(a|b)*abb'">abb</button>
+          <button class="sbtn" onclick="document.getElementById('regex-in').value='a*b*'">a*b*</button>
+          <button class="sbtn" onclick="document.getElementById('regex-in').value='(0|1)*00'">(0|1)*00</button>
+          <button class="sbtn" onclick="document.getElementById('regex-in').value='(ab)+'">(ab)+</button>
+        </div>
+      </div>
+      <div id="regex-out" style="display:none">
+        <div class="panel">
+          <div class="panel-title">NFA Info</div>
+          <div id="regex-info" class="info"></div>
+          <div class="field" style="margin-top:.6rem">
+            <label>Test string against this NFA</label>
+            <div class="str-wrap" id="regex-sw" onclick="fi('regex')">
+              <input id="regex-test-in" placeholder="Type test string..."
+                oninput="buildToks('regex')" onkeydown="strKey(event,'regex')"/>
+            </div>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-green btn-sm" onclick="testRegexNFA()">▶ Test</button>
+          </div>
+          <div id="regex-result"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Minimize DFA ── -->
+    <div id="panel-mindfa" class="sidebar-panel" style="display:none">
+      <div class="panel">
+        <div class="panel-title">⚙ DFA to Minimize</div>
+        <div class="field"><label>States</label><input id="min-states" value="q0,q1,q2,q3,q4,q5"/></div>
+        <div class="field"><label>Alphabet</label><input id="min-alpha" value="a,b"/></div>
+        <div class="field"><label>Start</label><input id="min-start" value="q0"/></div>
+        <div class="field"><label>Accept</label><input id="min-accept" value="q2,q4"/></div>
+        <div class="field"><label>Transitions</label>
+          <textarea id="min-trans" rows="7">q0,a→q1
+q0,b→q3
+q1,a→q2
+q1,b→q4
+q2,a→q1
+q2,b→q4
+q3,a→q2
+q3,b→q5
+q4,a→q1
+q4,b→q4
+q5,a→q2
+q5,b→q5</textarea>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-purple btn-sm" onclick="doMinimize()">⚙ Minimize</button>
+          <button class="btn btn-ghost btn-sm" onclick="buildGraph('min')">◈ Orig Graph</button>
+        </div>
+      </div>
+      <div id="min-out" style="display:none">
+        <div class="panel">
+          <div class="panel-title">✓ Minimized DFA</div>
+          <div id="min-info" class="info"></div>
+          <div class="btn-row" style="margin-top:.6rem">
+            <button class="btn btn-ghost btn-sm" onclick="showMinGraph()">◈ Min Graph</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ── QUESTION GENERATOR ── -->
+    <div id="panel-generator" class="sidebar-panel" style="display:none">
+
+      <div class="panel">
+        <div class="panel-title">✦ Pattern Builder</div>
+
+        <!-- Alphabet -->
+        <div class="field">
+          <label>Alphabet (comma-separated symbols)</label>
+          <input id="gen-alpha" value="a,b" placeholder="a,b  or  0,1  or  a,b,0,1"/>
+        </div>
+
+        <!-- Pattern category -->
+        <div class="field">
+          <label>Pattern Category</label>
+          <select id="gen-category" onchange="updateGenFields()">
+            <optgroup label="── Prefix / Suffix ──">
+              <option value="starts_with">Starts with string</option>
+              <option value="not_starts_with">Does NOT start with string</option>
+              <option value="ends_with">Ends with string</option>
+              <option value="not_ends_with">Does NOT end with string</option>
+              <option value="same_start_end">Starts &amp; ends with same symbol</option>
+              <option value="diff_start_end">Starts &amp; ends with different symbol</option>
+            </optgroup>
+            <optgroup label="── Substring / Contains ──">
+              <option value="contains">Contains substring</option>
+              <option value="not_contains">Does NOT contain substring</option>
+            </optgroup>
+            <optgroup label="── Counting ──">
+              <option value="even_count">Even number of symbol</option>
+              <option value="odd_count">Odd number of symbol</option>
+              <option value="exactly_n">Exactly N occurrences of symbol</option>
+              <option value="at_least_n">At least N occurrences of symbol</option>
+              <option value="at_most_n">At most N occurrences of symbol</option>
+              <option value="equal_count">Equal count of two symbols</option>
+            </optgroup>
+            <optgroup label="── Length ──">
+              <option value="length_exactly">Exact length N</option>
+              <option value="length_divisible">Length divisible by N</option>
+              <option value="alternating">Strictly alternating symbols</option>
+              <option value="palindrome_len2">Palindrome of length 2</option>
+            </optgroup>
+            <optgroup label="── Numeric ──">
+              <option value="divisible_by">Numeric value divisible by N</option>
+            </optgroup>
+          </select>
+        </div>
+
+        <!-- Dynamic parameter fields (shown/hidden by JS) -->
+        <div id="gen-fields">
+
+          <!-- prefix -->
+          <div class="field gen-p" id="gf-prefix">
+            <label>Prefix string (e.g. ab or 01)</label>
+            <input id="gen-prefix" placeholder="ab" value="ab"/>
+          </div>
+
+          <!-- suffix -->
+          <div class="field gen-p" id="gf-suffix">
+            <label>Suffix string (e.g. ba or 00)</label>
+            <input id="gen-suffix" placeholder="ba" value="ba"/>
+          </div>
+
+          <!-- sub -->
+          <div class="field gen-p" id="gf-sub">
+            <label>Substring to search for</label>
+            <input id="gen-sub" placeholder="aba" value="aba"/>
+          </div>
+
+          <!-- sym -->
+          <div class="field gen-p" id="gf-sym">
+            <label>Symbol to count (single character)</label>
+            <input id="gen-sym" placeholder="a" value="a" maxlength="5"/>
+          </div>
+
+          <!-- sym1 / sym2 (for equal count) -->
+          <div class="field gen-p" id="gf-sym12">
+            <label>First symbol</label>
+            <input id="gen-sym1" placeholder="a" value="a" maxlength="5"/>
+          </div>
+          <div class="field gen-p" id="gf-sym12b">
+            <label>Second symbol</label>
+            <input id="gen-sym2" placeholder="b" value="b" maxlength="5"/>
+          </div>
+
+          <!-- count -->
+          <div class="field gen-p" id="gf-count">
+            <label>Count N</label>
+            <input id="gen-count" type="number" min="0" max="10" value="2"/>
+          </div>
+
+          <!-- n (generic) -->
+          <div class="field gen-p" id="gf-n">
+            <label>N</label>
+            <input id="gen-n" type="number" min="1" max="12" value="3"/>
+          </div>
+
+          <!-- base (divisible_by) -->
+          <div class="field gen-p" id="gf-base">
+            <label>Number base (2 = binary, 10 = decimal)</label>
+            <select id="gen-base">
+              <option value="2">Binary (base 2)</option>
+              <option value="10">Decimal (base 10)</option>
+            </select>
+          </div>
+
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-accent btn-sm" onclick="doGenerate()" style="background:var(--yellow);color:#000">✦ Generate</button>
+          <button class="btn btn-ghost btn-sm" onclick="doGenerateAndTest()">✦ Generate &amp; Test</button>
+        </div>
+      </div>
+
+      <!-- Generated automaton info -->
+      <div id="gen-out" style="display:none">
+        <div class="panel">
+          <div class="panel-title" id="gen-out-title">Generated Automaton</div>
+          <div id="gen-out-desc" style="font-size:.74rem;color:var(--text2);margin-bottom:.6rem;line-height:1.6;font-style:italic;"></div>
+          <div id="gen-info" class="info"></div>
+
+          <!-- Test the generated automaton -->
+          <div class="field" style="margin-top:.65rem">
+            <label>Test string</label>
+            <div class="str-wrap" id="gen-sw" onclick="fi('gen')">
+              <input id="gen-input" placeholder="Enter test string..." oninput="buildToks('gen')" onkeydown="strKey(event,'gen')"/>
+            </div>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-green btn-sm" onclick="runGenSim()">▶ Run</button>
+            <button class="btn btn-ghost btn-sm" onclick="stepGenSim(-1)">◀</button>
+            <button class="btn btn-ghost btn-sm" onclick="stepGenSim(1)">▶ Step</button>
+            <button class="btn btn-ghost btn-sm" onclick="resetGenSim()">↺ Reset</button>
+          </div>
+          <div id="gen-result"></div>
+
+          <!-- Export to simulator tabs -->
+          <div style="margin-top:.65rem;padding-top:.65rem;border-top:1px solid var(--border)">
+            <div style="font-size:.7rem;color:var(--text2);margin-bottom:.4rem">Export to simulator:</div>
+            <div class="btn-row">
+              <button class="btn btn-ghost btn-sm" onclick="exportToTab()">→ Open in Simulator</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /panel-generator -->
+
+  </aside>
+
+  <!-- ═══════════ MAIN ═══════════ -->
+  <main class="main">
+    <div class="graph-area" id="graph-area">
+      <div class="ph-msg" id="ph-msg">
+        <div class="ph-icon">◈</div>
+        <p class="ph-text">Build an automaton to visualize it here</p>
+      </div>
+      <svg id="graph-svg"></svg>
+      <div class="graph-controls">
+        <button class="btn btn-ghost btn-sm" onclick="fitView()">⊙ Fit</button>
+        <button class="btn btn-ghost btn-sm" onclick="reLayout()">⟳ Layout</button>
+      </div>
+      <div class="graph-legend" id="graph-legend" style="display:none">
+        <div class="lg-item"><div class="lg-dot" style="border-color:var(--green)"></div>Start</div>
+        <div class="lg-item"><div class="lg-dot" style="border-color:var(--green);border-width:3px"></div>Accept</div>
+        <div class="lg-item"><div class="lg-dot" style="border-color:var(--accent)"></div>Active</div>
+      </div>
+    </div>
+
+    <div class="steps-area">
+      <div class="steps-header">
+        <span class="steps-lbl">Execution Trace</span>
+        <div id="sim-status"></div>
+      </div>
+      <div class="step-trace" id="step-trace">
+        <span style="color:var(--text3);font-size:.77rem">Run a simulation to see the step-by-step trace.</span>
+      </div>
+      <div id="conv-table-area" style="display:none">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:.64rem;color:var(--purple);letter-spacing:.14em;text-transform:uppercase;margin-bottom:.55rem">Subset Construction Table</div>
+        <div id="conv-table" style="overflow-x:auto"></div>
+      </div>
+      <div id="min-steps-area" style="display:none">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:.64rem;color:var(--purple);letter-spacing:.14em;text-transform:uppercase;margin-bottom:.55rem">Hopcroft's Partition Steps</div>
+        <div id="min-steps-content"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="tip" id="tip"></div>
+
+<script>
+// ══════════════════════════════════════════════
+//  THEME TOGGLE
+// ══════════════════════════════════════════════
+let darkMode = true;
+function toggleTheme() {
+  darkMode = !darkMode;
+  document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
+  document.getElementById('th-icon').textContent = darkMode ? '🌙' : '☀️';
+  document.getElementById('th-lbl').textContent  = darkMode ? 'Dark' : 'Light';
+  if (currentGraph) renderGraph(currentGraph);
+}
+
+// ══════════════════════════════════════════════
+//  GLOBALS
+// ══════════════════════════════════════════════
+let currentTab  = 'dfa';
+let currentGraph = null;
+let simSteps = null;
+let simCursor = -1;
+let convertedDFA = null;
+let origNFA = null;
+let regexNFA = null;
+let minResult = null;
+let svgSel, gSel, sim, zoomB;
+const NR = 28; // node radius
+
+// ══════════════════════════════════════════════
+//  NAV
+// ══════════════════════════════════════════════
+function switchTab(tab, btn) {
+  currentTab = tab;
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  document.querySelectorAll('.sidebar-panel').forEach(p => p.style.display = 'none');
+  document.getElementById('panel-' + tab).style.display = '';
+  clearSteps();
+}
+
+function clearSteps() {
+  document.getElementById('step-trace').innerHTML = '<span style="color:var(--text3);font-size:.77rem">Run a simulation to see the step-by-step trace.</span>';
+  document.getElementById('step-trace').style.display = 'flex';
+  document.getElementById('conv-table-area').style.display = 'none';
+  document.getElementById('min-steps-area').style.display = 'none';
+  document.getElementById('sim-status').innerHTML = '';
+}
+
+// ══════════════════════════════════════════════
+//  TOKEN DISPLAY FOR INPUT STRING
+// ══════════════════════════════════════════════
+function fi(pfx) {  // focus input
+  const id = pfx === 'regex' ? 'regex-test-in' : pfx + '-input';
+  document.getElementById(id)?.focus();
+}
+
+function buildToks(pfx) {
+  const id    = pfx === 'regex' ? 'regex-test-in' : pfx + '-input';
+  const wrapId= pfx === 'regex' ? 'regex-sw' : pfx + '-sw';
+  const wrap = document.getElementById(wrapId);
+  const inp  = document.getElementById(id);
+  if (!wrap || !inp) return;
+  wrap.querySelectorAll('.ch-tok').forEach(t => t.remove());
+  const frag = document.createDocumentFragment();
+  [...inp.value].forEach((ch, i) => {
+    const t = document.createElement('span');
+    t.className = 'ch-tok tok-pending';
+    t.textContent = ch;
+    t.dataset.i = i;
+    frag.appendChild(t);
+  });
+  wrap.insertBefore(frag, inp);
+}
+
+function hlToks(pfx, cursor) {
+  // cursor = number of symbols consumed so far (0 = none consumed yet)
+  const wrapId = pfx === 'regex' ? 'regex-sw' : pfx + '-sw';
+  const wrap = document.getElementById(wrapId);
+  if (!wrap) return;
+  wrap.querySelectorAll('.ch-tok').forEach((t, i) => {
+    t.className = 'ch-tok';
+    if (i < cursor)       t.classList.add('tok-consumed');
+    else if (i === cursor) t.classList.add('tok-active');
+    else                  t.classList.add('tok-pending');
+  });
+}
+
+function strKey(e, pfx) {
+  if (e.key === 'Enter') { e.preventDefault(); runSim(pfx); }
+}
+
+// ══════════════════════════════════════════════
+//  PARSE HELPERS
+// ══════════════════════════════════════════════
+function csv(s) { return s.split(',').map(x => x.trim()).filter(Boolean); }
+
+function parseTrans(txt, isNFA) {
+  const tr = {};
+  txt.split('\n').forEach(line => {
+    line = line.trim();
+    if (!line) return;
+    const m = line.match(/^(.+?),(.+?)→(.+)$/);
+    if (!m) return;
+    const [, from, sym, tos] = m;
+    const key = `${from.trim()},${sym.trim()}`;
+    tr[key] = isNFA ? tos.split(',').map(s => s.trim()).filter(Boolean) : tos.trim();
+  });
+  return tr;
+}
+
+function getAut(pfx, isNFA = false) {
+  return {
+    states:      csv(document.getElementById(pfx + '-states').value),
+    alphabet:    csv(document.getElementById(pfx + '-alpha').value),
+    transitions: parseTrans(document.getElementById(pfx + '-trans').value, isNFA),
+    start:       document.getElementById(pfx + '-start').value.trim(),
+    accept:      csv(document.getElementById(pfx + '-accept').value),
+  };
+}
+
+// ══════════════════════════════════════════════
+//  SAMPLES — includes digit-based ones
+// ══════════════════════════════════════════════
+const SAMPLES = {
+  'dfa-even-b':{ states:'q0,q1',alpha:'a,b',start:'q0',accept:'q0',trans:'q0,a→q0\nq0,b→q1\nq1,a→q1\nq1,b→q0' },
+  'dfa-end-01':{ states:'q0,q1,q2',alpha:'0,1',start:'q0',accept:'q2',trans:'q0,0→q1\nq0,1→q0\nq1,0→q1\nq1,1→q2\nq2,0→q1\nq2,1→q0' },
+  'dfa-div3':{   states:'q0,q1,q2',alpha:'0,1',start:'q0',accept:'q0',trans:'q0,0→q0\nq0,1→q1\nq1,0→q2\nq1,1→q0\nq2,0→q1\nq2,1→q2' },
+  'nfa-abb':{    states:'q0,q1,q2,q3',alpha:'a,b',start:'q0',accept:'q3',trans:'q0,a→q0,q1\nq0,b→q0\nq1,b→q2\nq2,b→q3' },
+  'nfa-eps':{    states:'q0,q1,q2,q3',alpha:'a,b',start:'q0',accept:'q3',trans:'q0,ε→q1\nq0,a→q0\nq1,b→q2\nq2,ε→q3' },
+  'n2d-nfa1':{   states:'q0,q1,q2,q3',alpha:'a,b',start:'q0',accept:'q3',trans:'q0,a→q0,q1\nq0,b→q0\nq1,b→q2\nq2,b→q3' },
+  'n2d-bin':{    states:'q0,q1,q2',alpha:'0,1',start:'q0',accept:'q2',trans:'q0,0→q0,q1\nq0,1→q0\nq1,0→q2\nq1,1→q2' },
+};
+
+function loadSample(pfx, name) {
+  const s = SAMPLES[`${pfx}-${name}`];
+  if (!s) return;
+  ['states','alpha','start','accept','trans'].forEach(f => {
+    const el = document.getElementById(`${pfx}-${f}`);
+    if (el) el.value = s[f];
+  });
+}
+
+// ══════════════════════════════════════════════
+//  PURE JS ENGINES  (no backend needed)
+// ══════════════════════════════════════════════
+function jsDFA(states, alphabet, transitions, start, accept, input) {
+  const accSet = new Set(accept);
+  let cur = start;
+  const steps = [{step:0,state:cur,remaining:input,symbol:null,accepted:accSet.has(cur)}];
+  for (let i = 0; i < input.length; i++) {
+    const sym = input[i];
+    const next = transitions[`${cur},${sym}`];
+    if (!next) {
+      steps.push({step:i+1,state:'DEAD',remaining:input.slice(i+1),symbol:sym,accepted:false});
+      return {accepted:false,steps};
+    }
+    cur = next;
+    steps.push({step:i+1,state:cur,remaining:input.slice(i+1),symbol:sym,accepted:accSet.has(cur)});
+  }
+  return {accepted:accSet.has(cur),steps};
+}
+
+function jsEps(statesArr, transitions) {
+  const closure = new Set(statesArr);
+  const stack = [...statesArr];
+  while (stack.length) {
+    const s = stack.pop();
+    (transitions[`${s},ε`]||[]).forEach(ns => { if (!closure.has(ns)) { closure.add(ns); stack.push(ns); } });
+  }
+  return closure;
+}
+
+function jsNFA(states, alphabet, transitions, start, accept, input) {
+  const accSet = new Set(accept);
+  let cur = jsEps([start], transitions);
+  const steps = [{step:0,states:[...cur].sort(),remaining:input,symbol:null,accepted:[...cur].some(s=>accSet.has(s))}];
+  for (let i = 0; i < input.length; i++) {
+    const sym = input[i];
+    const moved = new Set();
+    cur.forEach(s => (transitions[`${s},${sym}`]||[]).forEach(ns => moved.add(ns)));
+    cur = jsEps([...moved], transitions);
+    const accepted = [...cur].some(s => accSet.has(s));
+    steps.push({step:i+1,states:[...cur].sort(),remaining:input.slice(i+1),symbol:sym,accepted});
+    if (!cur.size) break;
+  }
+  return {accepted:[...cur].some(s=>accSet.has(s)),steps};
+}
+
+function jsNFA2DFA(states, alphabet, transitions, start, accept) {
+  const accSet = new Set(accept);
+  const startClosure = jsEps([start], transitions);
+  const unmarked = [startClosure];
+  const dfaStates = new Map(); dfaStates.set([...startClosure].sort().join(','), 'q0');
+  const dfaTrans = {}, dfaAccept = [], convSteps = [];
+  let counter = 1;
+  const getKey = s => [...s].sort().join(',');
+  while (unmarked.length) {
+    const cur = unmarked.shift();
+    const curName = dfaStates.get(getKey(cur));
+    const stepInfo = {dfa_state:curName, nfa_states:[...cur].sort(), moves:{}};
+    for (const sym of alphabet) {
+      const moved = new Set();
+      cur.forEach(s => (transitions[`${s},${sym}`]||[]).forEach(ns => moved.add(ns)));
+      const closure = jsEps([...moved], transitions);
+      const ck = getKey(closure);
+      if (!dfaStates.has(ck)) { dfaStates.set(ck, `q${counter++}`); unmarked.push(closure); }
+      const target = dfaStates.get(ck);
+      dfaTrans[`${curName},${sym}`] = target;
+      stepInfo.moves[sym] = target;
+    }
+    if ([...cur].some(s => accSet.has(s))) dfaAccept.push(curName);
+    convSteps.push(stepInfo);
+  }
+  const stateMapping = {};
+  dfaStates.forEach((name, key) => { stateMapping[name] = key ? key.split(',').filter(Boolean) : []; });
+  return {states:[...dfaStates.values()], alphabet, transitions:dfaTrans, start:'q0', accept:dfaAccept, conversion_steps:convSteps, state_mapping:stateMapping};
+}
+
+function jsThompson(regex) {
+  let n = 0;
+  const newState = () => `s${n++}`;
+  const trans = {};
+  const addTrans = (from, sym, to) => { trans[`${from},${sym}`] = trans[`${from},${sym}`] || []; trans[`${from},${sym}`].push(to); };
+  // insert concat operator
+  let out = [];
+  for (let i = 0; i < regex.length; i++) {
+    out.push(regex[i]);
+    if (i+1 < regex.length) {
+      const c = regex[i], nx = regex[i+1];
+      if (c !== '(' && c !== '|' && nx !== ')' && nx !== '|' && nx !== '*' && nx !== '+' && nx !== '?') out.push('.');
+    }
+  }
+  regex = out.join('');
+  // shunting yard
+  const prec = {'|':1,'.':2,'*':3,'+':3,'?':3};
+  const postfix = [], ops = [];
+  for (const c of regex) {
+    if (c === '(') ops.push(c);
+    else if (c === ')') { while (ops.length && ops[ops.length-1] !== '(') postfix.push(ops.pop()); ops.pop(); }
+    else if (prec[c] !== undefined) { while (ops.length && ops[ops.length-1] !== '(' && (prec[ops[ops.length-1]]||0) >= prec[c]) postfix.push(ops.pop()); ops.push(c); }
+    else postfix.push(c);
+  }
+  while (ops.length) postfix.push(ops.pop());
+  // build NFA
+  const stack = []; const allStates = new Set(); const alpha = new Set();
+  const np = () => { const s=newState(),e=newState(); allStates.add(s); allStates.add(e); return [s,e]; };
+  for (const c of postfix) {
+    if (c === '.') { if (stack.length<2) return {error:'Invalid regex'}; const [s2,e2]=stack.pop(),[s1,e1]=stack.pop(); addTrans(e1,'ε',s2); stack.push([s1,e2]); }
+    else if (c === '|') { if (stack.length<2) return {error:'Invalid regex'}; const [s2,e2]=stack.pop(),[s1,e1]=stack.pop(),[ns,ne]=np(); addTrans(ns,'ε',s1); addTrans(ns,'ε',s2); addTrans(e1,'ε',ne); addTrans(e2,'ε',ne); stack.push([ns,ne]); }
+    else if (c === '*') { if (!stack.length) return {error:'Invalid regex'}; const [s1,e1]=stack.pop(),[ns,ne]=np(); addTrans(ns,'ε',s1); addTrans(ns,'ε',ne); addTrans(e1,'ε',s1); addTrans(e1,'ε',ne); stack.push([ns,ne]); }
+    else if (c === '+') { if (!stack.length) return {error:'Invalid regex'}; const [s1,e1]=stack.pop(),[ns,ne]=np(); addTrans(ns,'ε',s1); addTrans(e1,'ε',s1); addTrans(e1,'ε',ne); stack.push([ns,ne]); }
+    else if (c === '?') { if (!stack.length) return {error:'Invalid regex'}; const [s1,e1]=stack.pop(),[ns,ne]=np(); addTrans(ns,'ε',s1); addTrans(ns,'ε',ne); addTrans(e1,'ε',ne); stack.push([ns,ne]); }
+    else { const [ns,ne]=np(); addTrans(ns,c,ne); alpha.add(c); stack.push([ns,ne]); }
+  }
+  if (!stack.length) return {error:'Invalid regex'};
+  const [start,end] = stack[0];
+  return {states:[...allStates].sort(), alphabet:[...alpha].sort(), transitions:trans, start, accept:[end]};
+}
+
+function jsMinimize(states, alphabet, transitions, start, accept) {
+  const accSet = new Set(accept);
+  const nonAcc = states.filter(s => !accSet.has(s));
+  let partitions = [accSet.size ? [...accSet] : [], nonAcc].filter(p => p.length).map(p => new Set(p));
+  let worklist = [...partitions];
+  const steps = [{step:0, partitions:partitions.map(p=>[...p].sort())}];
+  while (worklist.length) {
+    const splitter = worklist.shift();
+    for (const sym of alphabet) {
+      const preds = new Set(states.filter(s => splitter.has(transitions[`${s},${sym}`])));
+      const newParts = [];
+      for (const part of partitions) {
+        const inter = new Set([...part].filter(s => preds.has(s)));
+        const diff  = new Set([...part].filter(s => !preds.has(s)));
+        if (inter.size && diff.size) {
+          newParts.push(inter, diff);
+          const wi = worklist.indexOf(part);
+          if (wi >= 0) { worklist.splice(wi,1); worklist.push(inter,diff); }
+          else worklist.push(inter.size <= diff.size ? inter : diff);
+        } else newParts.push(part);
+      }
+      partitions = newParts;
+      steps.push({step:steps.length, partitions:partitions.map(p=>[...p].sort()), symbol:sym});
+    }
+  }
+  const s2p = {}; partitions.forEach((p,i) => p.forEach(s => s2p[s] = `m${i}`));
+  const minTrans = {};
+  states.forEach(s => { alphabet.forEach(sym => { const t = transitions[`${s},${sym}`]; if (t) minTrans[`${s2p[s]},${sym}`] = s2p[t]; }); });
+  return {
+    states:[...new Set(Object.values(s2p))], alphabet, transitions:minTrans,
+    start:s2p[start], accept:[...new Set(accept.map(s=>s2p[s]))],
+    minimization_steps:steps,
+    state_mapping:Object.fromEntries(partitions.map((p,i) => [`m${i}`,[...p].sort()]))
+  };
+}
+
+// ══════════════════════════════════════════════
+//  SIMULATION  (pure JS, no backend)
+// ══════════════════════════════════════════════
+function runSim(tab) {
+  const isNFA = tab === 'nfa';
+  let aut, input, pfx = tab, simType = tab;
+
+  if (tab === 'regex') {
+    if (!regexNFA) { alert('Build the NFA first.'); return; }
+    aut = regexNFA; input = document.getElementById('regex-test-in').value;
+    simType = 'nfa';
+  } else {
+    aut = getAut(pfx, isNFA);
+    input = document.getElementById(pfx + '-input').value;
+    currentGraph = {...aut, type: tab};
+    renderGraph(currentGraph);
+  }
+
+  const res = simType === 'nfa'
+    ? jsNFA(aut.states, aut.alphabet, aut.transitions, aut.start, aut.accept, input)
+    : jsDFA(aut.states, aut.alphabet, aut.transitions, aut.start, aut.accept, input);
+
+  simSteps  = res.steps;
+  simCursor = -1;
+  buildToks(pfx);
+  renderTrace(res.steps, simType, pfx);
+  showRes(pfx === 'regex' ? 'regex-result' : pfx + '-result', res.accepted, input);
+  simCursor = simSteps.length - 1;
+  hlStep(simCursor, simType, pfx);
+}
+
+function step(tab, dir) {
+  if (!simSteps) { runSim(tab); simCursor = 0; hlStep(0, tab, tab); return; }
+  simCursor = Math.max(0, Math.min(simCursor + dir, simSteps.length - 1));
+  hlStep(simCursor, tab, tab);
+}
+
+function resetSim(tab) {
+  simSteps = null; simCursor = -1;
+  clearSteps(); clearHl();
+  const el = document.getElementById(tab + '-result');
+  if (el) el.innerHTML = '';
+  buildToks(tab);
+}
+
+// ══════════════════════════════════════════════
+//  TRACE RENDERING
+// ══════════════════════════════════════════════
+function renderTrace(steps, type, pfx) {
+  clearSteps();
+  const c = document.getElementById('step-trace');
+  c.innerHTML = '';
+  steps.forEach((s, i) => {
+    const last = i === steps.length - 1;
+    const stStr = type === 'nfa' ? `{${(s.states||[]).join(',')}}` : (s.state || 'DEAD');
+    const item = document.createElement('div');
+    item.className = 'step-item' + (last ? (s.accepted ? ' s-accepted' : ' s-rejected') : '');
+    item.id = `si-${i}`;
+    item.innerHTML = `<span class="s-state">${stStr}</span>${s.symbol ? `<span class="s-sep">─</span><span class="s-sym">${s.symbol}</span><span class="s-sep">→</span>` : ''}`;
+    item.onclick = () => { simCursor = i; hlStep(i, type, pfx); };
+    c.appendChild(item);
+    if (i < steps.length - 1) {
+      const sp = document.createElement('span');
+      sp.className = 's-sep'; sp.textContent = '›'; c.appendChild(sp);
+    }
+  });
+}
+
+function hlStep(idx, type, pfx) {
+  simCursor = idx;
+  document.querySelectorAll('.step-item').forEach(el => el.classList.remove('s-active'));
+  const el = document.getElementById(`si-${idx}`);
+  if (el) { el.classList.add('s-active'); el.scrollIntoView({block:'nearest',inline:'center'}); }
+
+  if (!simSteps || !simSteps[idx]) return;
+  const s = simSteps[idx];
+
+  // char token highlight: step 0 means no symbol consumed yet
+  hlToks(pfx, s.step > 0 ? s.step - 1 : -1);
+
+  // graph highlight
+  const active = type === 'nfa'
+    ? new Set(s.states || [])
+    : new Set(s.state && s.state !== 'DEAD' ? [s.state] : []);
+  hlNodes(active);
+
+  const stStr = type === 'nfa' ? `{${(s.states||[]).join(',')}}` : (s.state || 'DEAD');
+  document.getElementById('sim-status').innerHTML =
+    `<span class="badge ${s.accepted ? 'badge-accept' : 'badge-neutral'}">${s.accepted ? '✓' : '○'} ${stStr}</span>`;
+}
+
+// ══════════════════════════════════════════════
+//  NFA → DFA  (pure JS)
+// ══════════════════════════════════════════════
+function doNFA2DFA() {
+  const aut = getAut('n2d', true);
+  origNFA = {...aut, type:'nfa'};
+  const res = jsNFA2DFA(aut.states, aut.alphabet, aut.transitions, aut.start, aut.accept);
+  convertedDFA = res;
+  document.getElementById('n2d-out').style.display = '';
+  document.getElementById('n2d-info').innerHTML =
+    `<span class="info-k">States:</span> ${res.states.join(', ')}<br>
+     <span class="info-k">Start:</span> ${res.start}<br>
+     <span class="info-k">Accept:</span> ${res.accept.join(', ')}<br>
+     <span class="info-k">Transitions:</span> ${Object.keys(res.transitions).length}<br>
+     <div style="margin-top:.4rem;color:var(--text2);font-size:.69rem">DFA state → NFA subsets:</div>
+     ${Object.entries(res.state_mapping).map(([k,v])=>`<div style="font-size:.68rem;color:var(--text2)">${k} ≡ {${Array.isArray(v)?v.join(','):v}}</div>`).join('')}`;
+  currentGraph = {...res, type:'dfa'};
+  renderGraph(currentGraph);
+}
+
+function showSubsetTable() {
+  if (!convertedDFA) return;
+  document.getElementById('step-trace').style.display = 'none';
+  document.getElementById('conv-table-area').style.display = '';
+  const steps = convertedDFA.conversion_steps, alpha = convertedDFA.alphabet;
+  let h = `<table><tr><th>DFA State</th><th>NFA Subset</th>${alpha.map(a=>`<th>${a}</th>`).join('')}<th>Accept?</th></tr>`;
+  steps.forEach(s => {
+    const acc = convertedDFA.accept.includes(s.dfa_state);
+    h += `<tr><td style="color:var(--accent)">${s.dfa_state}</td><td>{${s.nfa_states.join(',')}}</td>${alpha.map(a=>`<td>${s.moves[a]||'∅'}</td>`).join('')}<td>${acc?`<span style="color:var(--green)">✓</span>`:'-'}</td></tr>`;
+  });
+  document.getElementById('conv-table').innerHTML = h + '</table>';
+}
+
+function showDFAgraph() { if (convertedDFA) { currentGraph={...convertedDFA,type:'dfa'}; renderGraph(currentGraph); } }
+function showNFAgraph() { if (origNFA)      { currentGraph=origNFA; renderGraph(currentGraph); } }
+
+// ══════════════════════════════════════════════
+//  REGEX → NFA  (pure JS)
+// ══════════════════════════════════════════════
+function doRegex2NFA() {
+  const regex = document.getElementById('regex-in').value.trim();
+  if (!regex) return;
+  const res = jsThompson(regex);
+  document.getElementById('regex-out').style.display = '';
+  if (res.error) { document.getElementById('regex-info').innerHTML = `<span style="color:var(--red)">${res.error}</span>`; return; }
+  regexNFA = res;
+  document.getElementById('regex-info').innerHTML =
+    `<span class="info-k">States:</span> ${res.states.length}<br>
+     <span class="info-k">Alphabet:</span> ${res.alphabet.join(', ')}<br>
+     <span class="info-k">Start:</span> ${res.start}<br>
+     <span class="info-k">Accept:</span> ${res.accept.join(', ')}<br>
+     <span class="info-k">ε-transitions:</span> ${Object.keys(res.transitions).filter(k=>k.endsWith(',ε')).length}`;
+  currentGraph = {...res, type:'nfa'};
+  renderGraph(currentGraph);
+}
+
+function testRegexNFA() {
+  if (!regexNFA) return;
+  const input = document.getElementById('regex-test-in').value;
+  currentGraph = {...regexNFA, type:'nfa'};
+  renderGraph(currentGraph);
+  const res = jsNFA(regexNFA.states, regexNFA.alphabet, regexNFA.transitions, regexNFA.start, regexNFA.accept, input);
+  simSteps = res.steps; simCursor = res.steps.length - 1;
+  buildToks('regex');
+  renderTrace(res.steps, 'nfa', 'regex');
+  showRes('regex-result', res.accepted, input);
+  hlStep(simCursor, 'nfa', 'regex');
+}
+
+// ══════════════════════════════════════════════
+//  MINIMIZE DFA  (pure JS)
+// ══════════════════════════════════════════════
+function doMinimize() {
+  const aut = getAut('min', false);
+  const res = jsMinimize(aut.states, aut.alphabet, aut.transitions, aut.start, aut.accept);
+  minResult = res;
+  document.getElementById('min-out').style.display = '';
+  document.getElementById('min-info').innerHTML =
+    `<span class="info-k">Original:</span> ${aut.states.length} states<br>
+     <span class="info-k">Minimized:</span> <span style="color:var(--green)">${res.states.length} states</span><br>
+     <span class="info-k">Start:</span> ${res.start}<br>
+     <span class="info-k">Accept:</span> ${res.accept.join(', ')}<br>
+     <div style="margin-top:.4rem;color:var(--text2);font-size:.69rem">Equivalence classes:</div>
+     ${Object.entries(res.state_mapping).map(([k,v])=>`<div style="font-size:.68rem;color:var(--text2)">${k} ≡ {${v.join(',')}}</div>`).join('')}`;
+  document.getElementById('step-trace').style.display = 'none';
+  document.getElementById('min-steps-area').style.display = '';
+  renderMinSteps(res.minimization_steps);
+  currentGraph = {...res, type:'dfa'};
+  renderGraph(currentGraph);
+}
+
+function showMinGraph() {
+  if (minResult) { currentGraph = {...minResult, type:'dfa'}; renderGraph(currentGraph); }
+}
+
+function renderMinSteps(steps) {
+  const c = document.getElementById('min-steps-content');
+  c.innerHTML = '';
+  steps.forEach((s, i) => {
+    const lbl = i === 0 ? 'Initial partition' : `Split on '${s.symbol||'?'}'`;
+    const d = document.createElement('div');
+    d.className = 'min-step';
+    d.innerHTML = `<span style="color:var(--text3);font-size:.68rem">Step ${i}: ${lbl}</span>
+      <div style="margin-top:.28rem">${s.partitions.map(p=>`<span class="part-set">{${p.join(',')}}</span>`).join(' ')}</div>`;
+    c.appendChild(d);
+  });
+}
+
+async function buildGraph(type) {
+  const isNFA = type === 'nfa';
+  const pfx = type === 'min' ? 'min' : type;
+  const aut = getAut(pfx, isNFA);
+  currentGraph = {...aut, type: type === 'min' ? 'dfa' : type};
+  renderGraph(currentGraph);
+}
+
+// ══════════════════════════════════════════════
+//  GRAPH — D3 VISUALIZATION (improved)
+// ══════════════════════════════════════════════
+function themeCol(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+
+function renderGraph(aut) {
+  document.getElementById('ph-msg').style.display = 'none';
+  document.getElementById('graph-legend').style.display = 'flex';
+
+  const svgEl = document.getElementById('graph-svg');
+  svgEl.innerHTML = '';
+
+  const area = document.getElementById('graph-area');
+  const W = area.clientWidth  || 800;
+  const H = area.clientHeight || 400;
+
+  // Colors from current theme
+  const C = {
+    nodeFill:       themeCol('--node-fill'),
+    nodeFillAcc:    themeCol('--node-fill-accept'),
+    nodeFillAct:    themeCol('--node-fill-active'),
+    nodeStroke:     themeCol('--node-stroke'),
+    nodeStrokeStart:themeCol('--node-stroke-start'),
+    nodeStrokeAcc:  themeCol('--node-stroke-acc'),
+    nodeStrokeAct:  themeCol('--node-stroke-act'),
+    nodeText:       themeCol('--node-text'),
+    edge:           themeCol('--edge-col'),
+    edgeLbl:        themeCol('--edge-lbl'),
+    edgeAct:        themeCol('--edge-act'),
+    green:          themeCol('--green'),
+    accent:         themeCol('--accent'),
+  };
+
+  svgSel = d3.select('#graph-svg');
+  const defs = svgSel.append('defs');
+
+  // Arrow markers
+  [['arr',C.edge], ['arr-act',C.edgeAct], ['arr-start',C.green]].forEach(([id, col]) => {
+    defs.append('marker').attr('id', id)
+      .attr('viewBox','0 -5 10 10')
+      .attr('refX', NR + 7).attr('refY', 0)
+      .attr('markerWidth', 7).attr('markerHeight', 7)
+      .attr('orient','auto')
+      .append('path').attr('d','M0,-5L10,0L0,5').attr('fill', col);
+  });
+  // Self-loop marker (shorter refX)
+  [['arr-self',C.edge], ['arr-self-act',C.edgeAct]].forEach(([id, col]) => {
+    defs.append('marker').attr('id', id)
+      .attr('viewBox','0 -5 10 10')
+      .attr('refX', 8).attr('refY', 0)
+      .attr('markerWidth', 7).attr('markerHeight', 7)
+      .attr('orient','auto')
+      .append('path').attr('d','M0,-5L10,0L0,5').attr('fill', col);
+  });
+
+  zoomB = d3.zoom().scaleExtent([0.15, 4]).on('zoom', e => gSel.attr('transform', e.transform));
+  svgSel.call(zoomB);
+  gSel = svgSel.append('g');
+
+  const {states, alphabet, transitions, start, accept, type} = aut;
+  const isNFA = type === 'nfa';
+  const accSet = new Set(accept || []);
+
+  // ── Position nodes in a circle ──
+  const n = states.length;
+  const cx = W/2, cy = H/2;
+  // Radius scales with number of nodes
+  const rr = Math.min(W, H) * (n <= 4 ? 0.28 : n <= 7 ? 0.32 : 0.36);
+  const nodes = states.map((s, i) => ({
+    id: s,
+    isStart:  s === start,
+    isAccept: accSet.has(s),
+    x: n === 1 ? cx : cx + rr * Math.cos(2*Math.PI*i/n - Math.PI/2),
+    y: n === 1 ? cy : cy + rr * Math.sin(2*Math.PI*i/n - Math.PI/2),
+  }));
+  const byId = Object.fromEntries(nodes.map(nd => [nd.id, nd]));
+
+  // ── Build edge list ──
+  const edgeMap = {};
+  Object.entries(transitions).forEach(([key, val]) => {
+    // key: "state,sym" — sym may contain commas if state names have commas? No—state names shouldn't
+    const ci = key.lastIndexOf(',');
+    const from = key.slice(0, ci);
+    const sym  = key.slice(ci + 1);
+    const tos  = isNFA ? (Array.isArray(val) ? val : [val]) : [val];
+    tos.forEach(to => {
+      const k = `${from}→${to}`;
+      if (!edgeMap[k]) edgeMap[k] = {from, to, syms: [], self: from === to};
+      edgeMap[k].syms.push(sym);
+    });
+  });
+  const edges = Object.values(edgeMap);
+  const pairSet = new Set(edges.map(e => `${e.from}→${e.to}`));
+
+  // ── Edge paths ──
+  const edgeG = gSel.append('g').attr('class','edges');
+  edges.forEach((ed, i) => {
+    const grp = edgeG.append('g').attr('class','edge-g').attr('id',`eg-${i}`);
+    // Path
+    grp.append('path')
+      .attr('class','edge-path').attr('id',`ep-${i}`)
+      .attr('fill','none').attr('stroke', C.edge)
+      .attr('stroke-width', 2)
+      .attr('marker-end', ed.self ? 'url(#arr-self)' : 'url(#arr)');
+    // Label background (white box for readability)
+    grp.append('rect').attr('class','edge-lbl-bg')
+      .attr('rx',3).attr('ry',3)
+      .attr('fill', themeCol('--surface2'))
+      .attr('stroke', themeCol('--border'))
+      .attr('stroke-width','0.8')
+      .style('opacity','0.85');
+    // Label text
+    grp.append('text').attr('class','edge-lbl-txt')
+      .attr('text-anchor','middle').attr('dominant-baseline','middle')
+      .style('font-family','"JetBrains Mono",monospace')
+      .style('font-size','13px').style('font-weight','700')
+      .style('fill', C.edgeLbl)
+      .style('pointer-events','none')
+      .text(ed.syms.join(','));
+  });
+
+  // ── Nodes ──
+  const nodeG = gSel.append('g').attr('class','nodes');
+  const nodeEls = nodeG.selectAll('.node').data(nodes).enter()
+    .append('g').attr('class', d => `node${d.isStart?' ns':''}${d.isAccept?' na':''}`)
+    .attr('id', d => `nd-${d.id}`)
+    .call(d3.drag()
+      .on('start',(ev,d) => { if(!ev.active) sim.alphaTarget(0.3).restart(); d.fx=d.x; d.fy=d.y; })
+      .on('drag', (ev,d) => { d.fx=ev.x; d.fy=ev.y; })
+      .on('end',  (ev,d) => { if(!ev.active) sim.alphaTarget(0); d.fx=null; d.fy=null; })
+    );
+
+  // Shadow circle for depth
+  nodeEls.append('circle')
+    .attr('r', NR + 2)
+    .attr('fill', 'none')
+    .attr('stroke', d => d.isAccept ? C.nodeStrokeAcc : C.nodeStroke)
+    .attr('stroke-width', 0)
+    .style('filter','blur(6px)')
+    .style('opacity', '0.4');
+
+  // Main node circle
+  nodeEls.append('circle')
+    .attr('r', NR)
+    .attr('fill',   d => d.isAccept ? C.nodeFillAcc : C.nodeFill)
+    .attr('stroke', d => d.isStart  ? C.nodeStrokeStart : d.isAccept ? C.nodeStrokeAcc : C.nodeStroke)
+    .attr('stroke-width', d => d.isAccept ? 2.8 : 2);
+
+  // Inner ring for accept states (double circle)
+  nodeEls.filter(d => d.isAccept).append('circle')
+    .attr('r', NR - 5).attr('fill','none')
+    .attr('stroke', C.nodeStrokeAcc).attr('stroke-width', 1.5)
+    .attr('stroke-dasharray','4 3').attr('opacity',0.7);
+
+  // Start arrow
+  nodeEls.filter(d => d.isStart).append('g').attr('class','start-arr')
+    .call(g => {
+      g.append('line')
+        .attr('x1', -NR - 24).attr('y1', 0).attr('x2', -NR - 1).attr('y2', 0)
+        .attr('stroke', C.green).attr('stroke-width', 2)
+        .attr('marker-end','url(#arr-start)');
+      g.append('text')
+        .attr('x', -NR - 28).attr('y', -6)
+        .attr('text-anchor','middle')
+        .style('font-size','9px').style('fill', C.green)
+        .style('font-family','"JetBrains Mono",monospace')
+        .text('start');
+    });
+
+  // State label — background outline for readability on any fill
+  nodeEls.append('text')
+    .attr('text-anchor','middle').attr('dominant-baseline','middle')
+    .style('font-family','"JetBrains Mono",monospace')
+    .style('font-size', d => d.id.length > 3 ? '10px' : '13px')
+    .style('font-weight','800')
+    .style('fill', 'none')
+    .style('stroke', 'rgba(0,0,0,0.7)')
+    .style('stroke-width', '4px')
+    .style('stroke-linejoin', 'round')
+    .style('pointer-events','none')
+    .text(d => d.id);
+  nodeEls.append('text')
+    .attr('text-anchor','middle').attr('dominant-baseline','middle')
+    .style('font-family','"JetBrains Mono",monospace')
+    .style('font-size', d => d.id.length > 3 ? '10px' : '13px')
+    .style('font-weight','800')
+    .style('fill', C.nodeText)
+    .style('pointer-events','none')
+    .text(d => d.id);
+
+  // ── Force Simulation ──
+  const fLinks = edges.filter(e => !e.self).map(e => ({source:e.from, target:e.to}));
+  sim = d3.forceSimulation(nodes)
+    .force('link',   d3.forceLink(fLinks).id(d=>d.id).distance(160).strength(0.35))
+    .force('charge', d3.forceManyBody().strength(-600))
+    .force('center', d3.forceCenter(cx, cy))
+    .force('collide',d3.forceCollide(NR + 22))
+    .alphaDecay(0.02);
+
+  sim.on('tick', () => {
+    // Reposition edges
+    edges.forEach((ed, i) => {
+      const sn = byId[ed.from], tn = byId[ed.to];
+      if (!sn || !tn) return;
+      const pathEl = document.getElementById(`ep-${i}`);
+      const grpEl  = document.getElementById(`eg-${i}`);
+      if (!pathEl || !grpEl) return;
+
+      let d, lx, ly;
+      if (ed.self) {
+        const x = sn.x, y = sn.y;
+        const h = NR + 12;
+        d = `M${x - h*0.65},${y - h*0.3} C${x - 58},${y - 72} ${x + 58},${y - 72} ${x + h*0.65},${y - h*0.3}`;
+        lx = x; ly = y - 72;
+      } else {
+        const bidir = pairSet.has(`${ed.to}→${ed.from}`);
+        const dx = tn.x - sn.x, dy = tn.y - sn.y;
+        const len = Math.sqrt(dx*dx + dy*dy) || 1;
+        if (bidir) {
+          const curve = 38;
+          const nx = -dy/len * curve, ny = dx/len * curve;
+          const mx = (sn.x+tn.x)/2 + nx, my = (sn.y+tn.y)/2 + ny;
+          d = `M${sn.x},${sn.y} Q${mx},${my} ${tn.x},${tn.y}`;
+          lx = mx; ly = my;
+        } else {
+          d = `M${sn.x},${sn.y} L${tn.x},${tn.y}`;
+          lx = (sn.x+tn.x)/2; ly = (sn.y+tn.y)/2;
+        }
+      }
+      pathEl.setAttribute('d', d);
+
+      // Update label position
+      const txtEl  = grpEl.querySelector('.edge-lbl-txt');
+      const bgEl   = grpEl.querySelector('.edge-lbl-bg');
+      if (txtEl) {
+        txtEl.setAttribute('x', lx);
+        txtEl.setAttribute('y', ly - (ed.self ? 0 : 10));
+        // Position background rect
+        try {
+          const bb = txtEl.getBBox();
+          if (bgEl && bb.width) {
+            bgEl.setAttribute('x', bb.x - 3);
+            bgEl.setAttribute('y', bb.y - 2);
+            bgEl.setAttribute('width', bb.width + 6);
+            bgEl.setAttribute('height', bb.height + 4);
+          }
+        } catch(e) {}
+      }
+    });
+    nodeEls.attr('transform', d => `translate(${d.x},${d.y})`);
+  });
+
+  sim.on('end', () => fitView());
+}
+
+function hlNodes(activeSet) {
+  if (!gSel) return;
+  const C = {
+    nodeFill:    themeCol('--node-fill'),
+    nodeFillAcc: themeCol('--node-fill-accept'),
+    nodeFillAct: themeCol('--node-fill-active'),
+    nodeStroke:  themeCol('--node-stroke'),
+    strokeStart: themeCol('--node-stroke-start'),
+    strokeAcc:   themeCol('--node-stroke-acc'),
+    strokeAct:   themeCol('--node-stroke-act'),
+    accent:      themeCol('--accent'),
+  };
+  d3.selectAll('.node').each(function(d) {
+    const act = activeSet.has(d.id);
+    d3.select(this).select('circle:nth-child(2)')
+      .attr('fill',   act ? C.nodeFillAct : (d.isAccept ? C.nodeFillAcc : C.nodeFill))
+      .attr('stroke', act ? C.strokeAct   : (d.isStart  ? C.strokeStart : (d.isAccept ? C.strokeAcc : C.nodeStroke)))
+      .attr('stroke-width', act ? 3.5 : (d.isAccept ? 2.8 : 2))
+      .style('filter', act ? `drop-shadow(0 0 10px ${C.accent})` : 'none');
+  });
+}
+
+function clearHl() { hlNodes(new Set()); }
+
+function fitView() {
+  if (!svgSel || !gSel) return;
+  const area = document.getElementById('graph-area');
+  const W = area.clientWidth || 800, H = area.clientHeight || 400;
+  try {
+    const b = gSel.node().getBBox();
+    if (!b.width) return;
+    const pad = 60;
+    const sc = Math.min((W-pad*2)/b.width, (H-pad*2)/b.height, 2);
+    const tx = W/2 - sc*(b.x + b.width/2);
+    const ty = H/2 - sc*(b.y + b.height/2);
+    svgSel.transition().duration(550).call(zoomB.transform, d3.zoomIdentity.translate(tx,ty).scale(sc));
+  } catch(e) {}
+}
+
+function reLayout() { if (sim) sim.alpha(1).restart(); }
+
+// ══════════════════════════════════════════════
+//  RESULT HELPERS
+// ══════════════════════════════════════════════
+function showRes(id, accepted, input) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.innerHTML = `<div class="result-box">
+    <span class="badge ${accepted ? 'badge-accept' : 'badge-reject'}">${accepted ? '✓ ACCEPTED' : '✗ REJECTED'}</span>
+    <span style="color:var(--text2);font-size:.72rem">"${input}"</span>
+  </div>`;
+}
+function showErr(id, msg) {
+  const el = document.getElementById(id);
+  if (el) el.innerHTML = `<div class="result-box" style="color:var(--red);border-color:color-mix(in srgb,var(--red) 35%,transparent)">⚠ ${msg}</div>`;
+}
+
+// ══════════════════════════════════════════════
+//  KEYBOARD SHORTCUTS
+// ══════════════════════════════════════════════
+document.addEventListener('keydown', e => {
+  const tag = document.activeElement.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+  if (e.key === 'ArrowRight') { e.preventDefault(); step(currentTab, 1); }
+  if (e.key === 'ArrowLeft')  { e.preventDefault(); step(currentTab, -1); }
+  if (e.key === 'Escape')     { resetSim(currentTab); }
+});
+
+// ══════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════
+window.addEventListener('load', () => {
+  ['dfa','nfa'].forEach(buildToks);
+  setTimeout(updateGenFields, 100);
+});
+
+// ══════════════════════════════════════════════
+//  QUESTION GENERATOR
+// ══════════════════════════════════════════════
+
+// Which fields are shown for each pattern type
+const GEN_FIELDS = {
+  starts_with:      ['prefix'],
+  not_starts_with:  ['prefix'],
+  ends_with:        ['suffix'],
+  not_ends_with:    ['suffix'],
+  same_start_end:   [],
+  diff_start_end:   [],
+  contains:         ['sub'],
+  not_contains:     ['sub'],
+  even_count:       ['sym'],
+  odd_count:        ['sym'],
+  exactly_n:        ['sym','count'],
+  at_least_n:       ['sym','count'],
+  at_most_n:        ['sym','count'],
+  equal_count:      ['sym12','sym12b'],
+  length_exactly:   ['n'],
+  length_divisible: ['n'],
+  alternating:      [],
+  palindrome_len2:  [],
+  divisible_by:     ['n','base'],
+};
+
+// Descriptions shown in the UI
+const GEN_LABELS = {
+  starts_with:      'Strings that START WITH a given prefix',
+  not_starts_with:  'Strings that do NOT start with a given prefix',
+  ends_with:        'Strings that END WITH a given suffix',
+  not_ends_with:    'Strings that do NOT end with a given suffix',
+  same_start_end:   'Strings whose first and last symbols are the same',
+  diff_start_end:   'Strings whose first and last symbols differ',
+  contains:         'Strings that CONTAIN a given substring',
+  not_contains:     'Strings that do NOT contain a given substring',
+  even_count:       'Strings with an EVEN number of a given symbol',
+  odd_count:        'Strings with an ODD number of a given symbol',
+  exactly_n:        'Strings with EXACTLY N occurrences of a symbol',
+  at_least_n:       'Strings with AT LEAST N occurrences of a symbol',
+  at_most_n:        'Strings with AT MOST N occurrences of a symbol',
+  equal_count:      'Strings where count(sym1) = count(sym2)',
+  length_exactly:   'Strings with EXACT LENGTH = N',
+  length_divisible: 'Strings whose LENGTH is divisible by N',
+  alternating:      'Strings with strictly ALTERNATING symbols',
+  palindrome_len2:  'Strings of length 2 that are PALINDROMES',
+  divisible_by:     'Binary/decimal numbers DIVISIBLE BY N',
+};
+
+let generatedAut = null;  // currently generated automaton
+
+function updateGenFields() {
+  const cat = document.getElementById('gen-category').value;
+  const show = GEN_FIELDS[cat] || [];
+  const allFields = ['prefix','suffix','sub','sym','sym12','sym12b','count','n','base'];
+  allFields.forEach(f => {
+    const el = document.getElementById('gf-' + f);
+    if (el) el.style.display = show.includes(f) ? '' : 'none';
+  });
+}
+
+// Build params object from current UI
+function getGenParams() {
+  const alpha = document.getElementById('gen-alpha').value.split(',').map(s=>s.trim()).filter(Boolean);
+  const cat   = document.getElementById('gen-category').value;
+  const params = { alphabet: alpha };
+
+  const v = id => (document.getElementById(id)||{}).value || '';
+  if (['starts_with','not_starts_with'].includes(cat))  params.prefix = v('gen-prefix');
+  if (['ends_with','not_ends_with'].includes(cat))      params.suffix = v('gen-suffix');
+  if (['contains','not_contains'].includes(cat))         params.sub    = v('gen-sub');
+  if (['even_count','odd_count','exactly_n','at_least_n','at_most_n'].includes(cat)) params.sym = v('gen-sym');
+  if (cat === 'equal_count') { params.sym1 = v('gen-sym1'); params.sym2 = v('gen-sym2'); params.max_diff = 6; }
+  if (['exactly_n','at_least_n','at_most_n'].includes(cat)) params.count = parseInt(v('gen-count')) || 2;
+  if (['length_exactly','length_divisible','divisible_by'].includes(cat)) params.n = parseInt(v('gen-n')) || 3;
+  if (cat === 'divisible_by') params.base = parseInt(v('gen-base')) || 2;
+  return { pattern_type: cat, params };
+}
+
+// ══════════════════════════════════════════════
+//  PURE JS AUTOMATON GENERATORS  (no backend)
+// ══════════════════════════════════════════════
+
+function generateAutomaton(patternType, params) {
+  const alpha = params.alphabet;
+  try {
+    switch (patternType) {
+
+      /* ── STARTS WITH prefix ── */
+      case 'starts_with': {
+        const pre = (params.prefix || 'a').split('');
+        const states = pre.map((_,i) => `q${i}`).concat([`q${pre.length}`, 'qd']);
+        const accept = [`q${pre.length}`];
+        const trans = {};
+        pre.forEach((sym, i) => {
+          alpha.forEach(a => {
+            trans[`q${i},${a}`] = a === sym ? `q${i+1}` : 'qd';
+          });
+        });
+        // accept state: stay on any symbol
+        alpha.forEach(a => { trans[`q${pre.length},${a}`] = `q${pre.length}`; });
+        // dead state: loop
+        alpha.forEach(a => { trans[`qd,${a}`] = 'qd'; });
+        return { type:'dfa', states, alphabet:alpha, transitions:trans, start:'q0', accept, description:`Accepts strings that start with "${params.prefix}"` };
+      }
+
+      /* ── NOT STARTS WITH ── */
+      case 'not_starts_with': {
+        const pre = (params.prefix || 'a').split('');
+        const states = pre.map((_,i) => `q${i}`).concat([`q${pre.length}`, 'qa']);
+        const accept = states.filter(s => s !== `q${pre.length}`);
+        const trans = {};
+        pre.forEach((sym, i) => {
+          alpha.forEach(a => {
+            trans[`q${i},${a}`] = a === sym ? `q${i+1}` : 'qa';
+          });
+        });
+        alpha.forEach(a => { trans[`q${pre.length},${a}`] = `q${pre.length}`; });
+        alpha.forEach(a => { trans[`qa,${a}`] = 'qa'; });
+        return { type:'dfa', states, alphabet:alpha, transitions:trans, start:'q0', accept, description:`Accepts strings that do NOT start with "${params.prefix}"` };
+      }
+
+      /* ── ENDS WITH suffix ── */
+      case 'ends_with': {
+        const suf = (params.suffix || 'b').split('');
+        const n = suf.length;
+        const states = Array.from({length: n+1}, (_,i) => `q${i}`);
+        const trans = {};
+        for (let i = 0; i <= n; i++) {
+          alpha.forEach(a => {
+            // KMP-style: find longest proper prefix of suf[0..i]+a that is a prefix of suf
+            let next = 0;
+            let attempt = suf.slice(0, i).concat([a]);
+            for (let len = Math.min(attempt.length, n); len > 0; len--) {
+              if (attempt.slice(attempt.length-len).join('') === suf.slice(0,len).join('')) { next = len; break; }
+            }
+            if (i < n && a === suf[i]) next = i + 1;
+            else {
+              next = 0;
+              for (let len = Math.min(i, n-1); len > 0; len--) {
+                const tail = suf.slice(0,i).concat([a]).slice(-len);
+                if (tail.join('') === suf.slice(0,len).join('')) { next = len; break; }
+              }
+            }
+            trans[`q${i},${a}`] = `q${next}`;
+          });
+        }
+        return { type:'dfa', states, alphabet:alpha, transitions:trans, start:'q0', accept:[`q${n}`], description:`Accepts strings that end with "${params.suffix}"` };
+      }
+
+      /* ── NOT ENDS WITH ── */
+      case 'not_ends_with': {
+        const inner = generateAutomaton('ends_with', params);
+        const allAcc = new Set(inner.accept);
+        inner.accept = inner.states.filter(s => !allAcc.has(s));
+        inner.description = `Accepts strings that do NOT end with "${params.suffix}"`;
+        return inner;
+      }
+
+      /* ── CONTAINS substring ── */
+      case 'contains': {
+        const sub = (params.sub || 'ab').split('');
+        const n = sub.length;
+        const states = Array.from({length: n+1}, (_,i) => `q${i}`);
+        const trans = {};
+        for (let i = 0; i < n; i++) {
+          alpha.forEach(a => {
+            if (a === sub[i]) { trans[`q${i},${a}`] = `q${i+1}`; }
+            else {
+              let j = i;
+              while (j > 0 && sub[j] !== a) j = 0; // simple fallback
+              trans[`q${i},${a}`] = j === 0 && a !== sub[0] ? 'q0' : 'q1';
+              // use KMP failure
+              let next = 0;
+              for (let len = Math.min(i, n-1); len > 0; len--) {
+                if (sub.slice(0,i).join('').slice(-len) === sub.slice(0,len).join('')) { next = len; break; }
+              }
+              if (a === sub[next]) next++;
+              trans[`q${i},${a}`] = `q${next}`;
+            }
+          });
+        }
+        // accepting (absorbed) state
+        alpha.forEach(a => { trans[`q${n},${a}`] = `q${n}`; });
+        return { type:'dfa', states, alphabet:alpha, transitions:trans, start:'q0', accept:[`q${n}`], description:`Accepts strings containing "${params.sub}"` };
+      }
+
+      /* ── NOT CONTAINS ── */
+      case 'not_contains': {
+        const inner = generateAutomaton('contains', params);
+        const allAcc = new Set(inner.accept);
+        inner.accept = inner.states.filter(s => !allAcc.has(s));
+        inner.description = `Accepts strings NOT containing "${params.sub}"`;
+        return inner;
+      }
+
+      /* ── EVEN COUNT of symbol ── */
+      case 'even_count': {
+        const sym = params.sym || alpha[0];
+        const states = ['q0','q1'];
+        const trans = {};
+        alpha.forEach(a => {
+          trans[`q0,${a}`] = a === sym ? 'q1' : 'q0';
+          trans[`q1,${a}`] = a === sym ? 'q0' : 'q1';
+        });
+        return { type:'dfa', states, alphabet:alpha, transitions:trans, start:'q0', accept:['q0'], description:`Accepts strings with EVEN number of '${sym}'` };
+      }
+
+      /* ── ODD COUNT ── */
+      case 'odd_count': {
+        const sym = params.sym || alpha[0];
+        const states = ['q0','q1'];
+        const trans = {};
+        alpha.forEach(a => {
+          trans[`q0,${a}`] = a === sym ? 'q1' : 'q0';
+          trans[`q1,${a}`] = a === sym ? 'q0' : 'q1';
+        });
+        return { type:'dfa', states, alphabet:alpha, transitions:trans, start:'q0', accept:['q1'], description:`Accepts strings with ODD number of '${sym}'` };
+      }
+
+      /* ── EXACTLY N occurrences ── */
+      case 'exactly_n': {
+        const sym = params.sym || alpha[0];
+        const N = parseInt(params.count) || 2;
+        const states = Array.from({length:N+2}, (_,i) => i <= N ? `q${i}` : 'qd');
+        const trans = {};
+        for (let i = 0; i <= N; i++) {
+          alpha.forEach(a => {
+            if (a === sym) trans[`q${i},${a}`] = i < N ? `q${i+1}` : 'qd';
+            else           trans[`q${i},${a}`] = `q${i}`;
+          });
+        }
+        alpha.forEach(a => { trans[`qd,${a}`] = 'qd'; });
+        return { type:'dfa', states:[...new Set(states)], alphabet:alpha, transitions:trans, start:'q0', accept:[`q${N}`], description:`Accepts strings with EXACTLY ${N} occurrences of '${sym}'` };
+      }
+
+      /* ── AT LEAST N ── */
+      case 'at_least_n': {
+        const sym = params.sym || alpha[0];
+        const N = parseInt(params.count) || 2;
+        const states = Array.from({length:N+1}, (_,i) => `q${i}`);
+        const trans = {};
+        for (let i = 0; i <= N; i++) {
+          alpha.forEach(a => {
+            if (a === sym) trans[`q${i},${a}`] = i < N ? `q${i+1}` : `q${N}`;
+            else           trans[`q${i},${a}`] = `q${i}`;
+          });
+        }
+        return { type:'dfa', states, alphabet:alpha, transitions:trans, start:'q0', accept:[`q${N}`], description:`Accepts strings with AT LEAST ${N} occurrences of '${sym}'` };
+      }
+
+      /* ── AT MOST N ── */
+      case 'at_most_n': {
+        const sym = params.sym || alpha[0];
+        const N = parseInt(params.count) || 2;
+        const states = Array.from({length:N+2}, (_,i) => i<=N ? `q${i}` : 'qd');
+        const trans = {};
+        for (let i = 0; i <= N; i++) {
+          alpha.forEach(a => {
+            if (a === sym) trans[`q${i},${a}`] = i < N ? `q${i+1}` : 'qd';
+            else           trans[`q${i},${a}`] = `q${i}`;
+          });
+        }
+        alpha.forEach(a => { trans[`qd,${a}`] = 'qd'; });
+        const accept = Array.from({length:N+1}, (_,i) => `q${i}`);
+        return { type:'dfa', states:[...new Set(states)], alphabet:alpha, transitions:trans, start:'q0', accept, description:`Accepts strings with AT MOST ${N} occurrences of '${sym}'` };
+      }
+
+      /* ── SAME START AND END ── */
+      case 'same_start_end': {
+        // NFA approach: branch on first symbol
+        const states = ['q0',...alpha.map(a=>`qs_${a}`),...alpha.map(a=>`qa_${a}`),'qlen1'];
+        const trans = {};
+        // q0 epsilon → each qs_a
+        alpha.forEach(a => {
+          if (!trans['q0,ε']) trans['q0,ε'] = [];
+          trans['q0,ε'].push(`qs_${a}`);
+        });
+        // qs_a --a--> qa_a (length 1, start and end = a)
+        // qs_a --any--> qs_a (wait for more), --a--> qa_a
+        alpha.forEach(startSym => {
+          alpha.forEach(a => {
+            const k = `qs_${startSym},${a}`;
+            if (!trans[k]) trans[k] = [];
+            trans[k].push(`qs_${startSym}`);        // stay (longer strings)
+            if (a === startSym) trans[k].push(`qa_${startSym}`); // end matches
+          });
+        });
+        // qa_a is accept, self-loop removed (it's a final guess)
+        const accept = alpha.map(a => `qa_${a}`);
+        return { type:'nfa', states, alphabet:alpha, transitions:trans, start:'q0', accept, description:`Accepts strings where first and last symbol are the same` };
+      }
+
+      /* ── DIFF START AND END ── */
+      case 'diff_start_end': {
+        const states = ['q0',...alpha.flatMap(a=>alpha.filter(b=>b!==a).map(b=>`q_${a}_${b}`)),'qd'];
+        const trans = {};
+        // From q0, branch to q_start_? for each start symbol
+        alpha.forEach(startSym => {
+          alpha.filter(b=>b!==startSym).forEach(endSym => {
+            const st = `q_${startSym}_${endSym}`;
+            if (!trans[`q0,${startSym}`]) trans[`q0,${startSym}`] = [];
+            trans[`q0,${startSym}`].push(st);
+            // loop in middle
+            alpha.forEach(a => {
+              if (!trans[`${st},${a}`]) trans[`${st},${a}`] = [];
+              trans[`${st},${a}`].push(st);
+            });
+          });
+        });
+        const accept = states.filter(s => s.startsWith('q_'));
+        return { type:'nfa', states:[...new Set(states)], alphabet:alpha, transitions:trans, start:'q0', accept, description:`Accepts strings where first and last symbol differ` };
+      }
+
+      /* ── LENGTH EXACTLY N ── */
+      case 'length_exactly': {
+        const N = parseInt(params.n) || 3;
+        const states = Array.from({length:N+2}, (_,i) => i<=N ? `q${i}` : 'qd');
+        const trans = {};
+        for (let i = 0; i <= N; i++) {
+          alpha.forEach(a => {
+            trans[`q${i},${a}`] = i < N ? `q${i+1}` : 'qd';
+          });
+        }
+        alpha.forEach(a => { trans[`qd,${a}`] = 'qd'; });
+        return { type:'dfa', states:[...new Set(states)], alphabet:alpha, transitions:trans, start:'q0', accept:[`q${N}`], description:`Accepts strings with EXACTLY length ${N}` };
+      }
+
+      /* ── LENGTH DIVISIBLE BY N ── */
+      case 'length_divisible': {
+        const N = parseInt(params.n) || 3;
+        const states = Array.from({length:N}, (_,i) => `q${i}`);
+        const trans = {};
+        states.forEach((_, i) => {
+          alpha.forEach(a => {
+            trans[`q${i},${a}`] = `q${(i+1)%N}`;
+          });
+        });
+        return { type:'dfa', states, alphabet:alpha, transitions:trans, start:'q0', accept:['q0'], description:`Accepts strings with length divisible by ${N}` };
+      }
+
+      /* ── ALTERNATING symbols ── */
+      case 'alternating': {
+        if (alpha.length < 2) return {error: 'Need at least 2 symbols for alternating'};
+        const [a0, a1] = alpha;
+        const states = ['q0','q1','q2','qd'];
+        const trans = {
+          [`q0,${a0}`]: 'q1', [`q0,${a1}`]: 'q2',
+          [`q1,${a0}`]: 'qd', [`q1,${a1}`]: 'q0',
+          [`q2,${a0}`]: 'q0', [`q2,${a1}`]: 'qd',
+          [`qd,${a0}`]: 'qd', [`qd,${a1}`]: 'qd',
+        };
+        alpha.slice(2).forEach(ax => {
+          ['q0','q1','q2','qd'].forEach(s => { trans[`${s},${ax}`] = 'qd'; });
+        });
+        return { type:'dfa', states, alphabet:alpha, transitions:trans, start:'q0', accept:['q0','q1','q2'], description:`Accepts strictly alternating strings of '${a0}' and '${a1}'` };
+      }
+
+      /* ── PALINDROME of length 2 ── */
+      case 'palindrome_len2': {
+        const states = ['q0',...alpha.map(a=>`q_${a}`),...alpha.map(a=>`qa_${a}`),'qd'];
+        const trans = {};
+        alpha.forEach(a => {
+          trans[`q0,${a}`] = `q_${a}`;
+          alpha.forEach(b => {
+            trans[`q_${a},${b}`] = a===b ? `qa_${a}` : 'qd';
+          });
+          alpha.forEach(b => { trans[`qa_${a},${b}`] = 'qd'; });
+          alpha.forEach(b => { trans[`qd,${b}`] = 'qd'; });
+        });
+        const accept = alpha.map(a=>`qa_${a}`);
+        return { type:'dfa', states:[...new Set(states)], alphabet:alpha, transitions:trans, start:'q0', accept, description:`Accepts palindromes of length 2 (aa, bb, …)` };
+      }
+
+      /* ── DIVISIBLE BY N (binary) ── */
+      case 'divisible_by': {
+        const N = parseInt(params.n) || 3;
+        const base = parseInt(params.base) || 2;
+        const alphaDigits = base === 2 ? ['0','1'] : '0123456789'.split('');
+        const states = Array.from({length:N}, (_,i) => `q${i}`);
+        const trans = {};
+        states.forEach((_,i) => {
+          alphaDigits.forEach(d => {
+            const next = (i * base + parseInt(d)) % N;
+            trans[`q${i},${d}`] = `q${next}`;
+          });
+        });
+        return { type:'dfa', states, alphabet:alphaDigits, transitions:trans, start:'q0', accept:['q0'], description:`Accepts ${base==='2'?'binary':'decimal'} numbers divisible by ${N}` };
+      }
+
+      default:
+        return { error: `Unknown pattern: ${patternType}` };
+    }
+  } catch(e) {
+    return { error: e.message };
+  }
+}
+
+// ── Replace async doGenerate with sync version (no API call) ──
+function doGenerate() {
+  const body  = getGenParams();
+  const res   = generateAutomaton(body.pattern_type, body.params);
+  if (res.error) {
+    document.getElementById('gen-out').style.display = '';
+    document.getElementById('gen-out-title').textContent = '⚠ Error';
+    document.getElementById('gen-out-desc').textContent  = res.error;
+    document.getElementById('gen-info').innerHTML = '';
+    return;
+  }
+  generatedAut = res;
+  showGenResult(res, body.pattern_type);
+  currentGraph = {...res};
+  renderGraph(currentGraph);
+}
+
+function doGenerateAndTest() {
+  doGenerate();
+  if (generatedAut) {
+    const testStr = document.getElementById('gen-input').value;
+    if (testStr) runGenSim();
+  }
+}
+
+function showGenResult(res, patType) {
+  document.getElementById('gen-out').style.display = '';
+  const isNFA = res.type === 'nfa';
+  document.getElementById('gen-out-title').textContent = (isNFA ? 'NFA' : 'DFA') + ' Generated ✓';
+  document.getElementById('gen-out-desc').textContent  = res.description || GEN_LABELS[patType] || '';
+  document.getElementById('gen-info').innerHTML =
+    `<span class="info-k">Type:</span> ${res.type.toUpperCase()}<br>
+     <span class="info-k">States:</span> ${res.states.join(', ')}<br>
+     <span class="info-k">Alphabet:</span> ${res.alphabet.join(', ')}<br>
+     <span class="info-k">Start:</span> ${res.start}<br>
+     <span class="info-k">Accept:</span> ${res.accept.join(', ')}<br>
+     <span class="info-k">Transitions:</span> ${Object.keys(res.transitions).length}`;
+}
+
+// ── Generator simulation ──
+let genSimSteps = null, genSimCursor = -1;
+
+async function runGenSim() {
+  if (!generatedAut) return;
+  const input = document.getElementById('gen-input').value;
+  const type  = generatedAut.type;
+  const res   = type === 'nfa'
+    ? jsNFA(generatedAut.states, generatedAut.alphabet, generatedAut.transitions, generatedAut.start, generatedAut.accept, input)
+    : jsDFA(generatedAut.states, generatedAut.alphabet, generatedAut.transitions, generatedAut.start, generatedAut.accept, input);
+  if (res.error && !res.steps) { showErr('gen-result', res.error); return; }
+  genSimSteps  = res.steps;
+  genSimCursor = res.steps.length - 1;
+  buildToks('gen');
+  renderTrace(res.steps, type, 'gen');
+  showRes('gen-result', res.accepted, input);
+  hlStep(genSimCursor, type, 'gen');
+}
+
+async function stepGenSim(dir) {
+  if (!genSimSteps) { await runGenSim(); genSimCursor=0; hlStep(0,generatedAut.type,'gen'); return; }
+  genSimCursor = Math.max(0, Math.min(genSimCursor+dir, genSimSteps.length-1));
+  hlStep(genSimCursor, generatedAut.type, 'gen');
+}
+
+// (simulators defined above as jsDFA / jsNFA)
+
+function resetGenSim() {
+  genSimSteps=null; genSimCursor=-1;
+  clearSteps(); clearHl();
+  document.getElementById('gen-result').innerHTML='';
+  buildToks('gen');
+}
+
+// Export: load automaton into DFA or NFA tab
+function exportToTab() {
+  if (!generatedAut) return;
+  const a = generatedAut;
+  const isNFA = a.type === 'nfa';
+  const pfx   = isNFA ? 'nfa' : 'dfa';
+
+  // Build transitions text
+  const transLines = Object.entries(a.transitions).map(([key, val]) => {
+    const targets = Array.isArray(val) ? val.join(',') : val;
+    return `${key}→${targets}`;
+  }).join('\n');
+
+  document.getElementById(pfx+'-states').value  = a.states.join(',');
+  document.getElementById(pfx+'-alpha').value   = a.alphabet.join(',');
+  document.getElementById(pfx+'-start').value   = a.start;
+  document.getElementById(pfx+'-accept').value  = a.accept.join(',');
+  document.getElementById(pfx+'-trans').value   = transLines;
+
+  // Switch to that tab
+  const tabs = document.querySelectorAll('.nav-tab');
+  const tabNames = ['dfa','nfa','nfa2dfa','regex2nfa','mindfa','generator'];
+  tabs.forEach((t,i) => { if(tabNames[i]===pfx) { switchTab(pfx,t); t.click(); } });
+  switchTab(pfx, [...tabs].find(t=>t.textContent.includes(isNFA?'NFA Sim':'DFA Sim')));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  const target = [...document.querySelectorAll('.nav-tab')].find(t=>t.getAttribute('onclick')&&t.getAttribute('onclick').includes("'"+pfx+"'"));
+  if(target) { target.classList.add('active'); switchTab(pfx,target); }
+  buildGraph(pfx);
+}
+
+// ── Gen-specific str-wrap ──
+// Patch fi() to handle 'gen' prefix
+const _orig_fi = fi;
+window.fi = function(pfx) {
+  if (pfx === 'gen') {
+    document.getElementById('gen-input')?.focus();
+    return;
+  }
+  _orig_fi(pfx);
+};
+
+const _orig_buildToks = buildToks;
+window.buildToks = function(pfx) {
+  if (pfx === 'gen') {
+    const wrap = document.getElementById('gen-sw');
+    const inp  = document.getElementById('gen-input');
+    if (!wrap || !inp) return;
+    wrap.querySelectorAll('.ch-tok').forEach(t=>t.remove());
+    const frag = document.createDocumentFragment();
+    [...inp.value].forEach((ch,i)=>{ const t=document.createElement('span'); t.className='ch-tok tok-pending'; t.textContent=ch; t.dataset.i=i; frag.appendChild(t); });
+    wrap.insertBefore(frag, inp);
+    return;
+  }
+  _orig_buildToks(pfx);
+};
+
+const _orig_hlToks = hlToks;
+window.hlToks = function(pfx, cursor) {
+  if (pfx === 'gen') {
+    const wrap = document.getElementById('gen-sw');
+    if (!wrap) return;
+    wrap.querySelectorAll('.ch-tok').forEach((t,i)=>{
+      t.className='ch-tok';
+      if(i<cursor) t.classList.add('tok-consumed');
+      else if(i===cursor) t.classList.add('tok-active');
+      else t.classList.add('tok-pending');
+    });
+    return;
+  }
+  _orig_hlToks(pfx, cursor);
+};
+
+// Init gen fields on load
+window.addEventListener('DOMContentLoaded', () => {
+  setTimeout(updateGenFields, 100);
+});
+// Also call now (in case DOMContentLoaded already fired)
+updateGenFields();
+
+</script>
+</body>
+</html>
